@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.Button
@@ -127,6 +129,7 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
                         Text("${books.size} books on Athena", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     androidx.compose.material3.IconButton(onClick = onNotes) { Icon(Icons.Default.EditNote, "Notes") }
+                    SyncChip()
                     ConnectionChip(route)
                 }
                 (loadState as? LoadState.Loading)?.let { s ->
@@ -292,5 +295,24 @@ private fun GoalCard(todaySeconds: Long, goalMinutes: Int, streak: Int, onClick:
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text("Stats", style = MaterialTheme.typography.labelLarge, color = primary)
+    }
+}
+
+/** Shows reading progress still waiting to reach Athena; tap to retry now. */
+@Composable
+fun SyncChip() {
+    val all by Graph.progress.all.collectAsState()
+    val syncing by Graph.progress.syncing.collectAsState()
+    val pending = all.values.count { it.dirty }
+    val scope = rememberCoroutineScope()
+    if (pending == 0 && !syncing) return
+    Row(
+        Modifier.padding(end = 8.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable { scope.launch { Graph.progress.pushDirty() } }.padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(if (syncing) Icons.Default.Sync else Icons.Default.CloudUpload, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(6.dp))
+        Text(if (syncing) "Syncing" else "$pending to sync", style = MaterialTheme.typography.labelMedium)
     }
 }

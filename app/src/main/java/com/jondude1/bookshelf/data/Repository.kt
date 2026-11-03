@@ -148,19 +148,31 @@ class ProgressRepository(context: Context, private val client: AbsClient, privat
 
     fun flush() { scope.launch { pushDirty() } }
 
+    private val _lastSync = MutableStateFlow(0L)
+    /** When progress last reached Athena successfully (0 = not this session). */
+    val lastSync: StateFlow<Long> = _lastSync
+    private val _syncing = MutableStateFlow(false)
+    val syncing: StateFlow<Boolean> = _syncing
+
     suspend fun pushDirty() {
         val dirty = _all.value.values.filter { it.dirty }
+        if (dirty.isEmpty()) return
+        _syncing.value = true
+        var allOk = true
         for (p in dirty) {
             val ok = runCatching { client.pushProgress(p) }.isSuccess
             if (ok) _all.update { m -> m[p.itemId]?.let { cur -> if (cur.updatedAt == p.updatedAt) m + (p.itemId to cur.copy(dirty = false)) else m } ?: m }
-            else break
+            else { allOk = false; break }
         }
+        if (allOk) _lastSync.value = System.currentTimeMillis()
+        _syncing.value = false
         persist()
     }
 
     /** Merges server progress for all books; newer side wins. */
     suspend fun syncFromServer() {
         val server = runCatching { client.me().mediaProgress }.getOrNull() ?: return
+        _lastSync.value = System.currentTimeMillis()
         _all.update { local ->
             val out = local.toMutableMap()
             for (sp in server) {

@@ -85,6 +85,12 @@ fun SettingsScreen(onSignedOut: () -> Unit, onOpenBook: (String) -> Unit) {
                 }
                 ConnectionChip(route)
             }
+            val lastSync by Graph.progress.lastSync.collectAsState()
+            val pending = Graph.progress.all.collectAsState().value.values.count { it.dirty }
+            Text(
+                (if (lastSync > 0) "Progress synced " + android.text.format.DateUtils.getRelativeTimeSpanString(lastSync) else "Progress not synced yet this session") +
+                    if (pending > 0) " · $pending waiting to upload" else "",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
             testResult?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
