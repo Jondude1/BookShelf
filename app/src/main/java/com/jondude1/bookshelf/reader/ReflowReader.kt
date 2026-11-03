@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -131,6 +134,11 @@ class ReflowController(
     }
 
     fun dismissReturn() { returnPoint = null }
+
+    /** Footnote shown in a pop-up: text and the link to its full location. */
+    var footnote by mutableStateOf<Pair<String, String>?>(null)
+
+    override fun onFootnote(text: String, url: String) { footnote = text to url }
 
     private var startSpec: String = """{"type":"first"}"""
     private var configJson: String = "{}"
@@ -486,6 +494,19 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
 
     controller.selectedHighlight?.let { h ->
         HighlightSheet(h, colors, controller, onDismiss = { controller.selectedHighlight = null })
+    }
+    controller.footnote?.let { (text, url) ->
+        ModalBottomSheet(onDismissRequest = { controller.footnote = null }, containerColor = colors.bg, contentColor = colors.fg) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+                Text("NOTE", color = colors.accent, style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.height(10.dp))
+                Text(text, color = colors.fg, fontFamily = com.jondude1.bookshelf.ui.Literata,
+                    style = MaterialTheme.typography.bodyLarge, modifier = Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()))
+                TextButton(onClick = { controller.footnote = null; controller.onLink(url) }, modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) {
+                    Text("Go to note", color = colors.accent)
+                }
+            }
+        }
     }
     controller.noteDraft?.let { draft ->
         NoteDialog(colors, initial = draft.note ?: "", quote = draft.text,

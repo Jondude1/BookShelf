@@ -26,6 +26,7 @@ interface ReaderBridge {
     fun onEdge(direction: Int)
     fun onTap()
     fun onLink(url: String)
+    fun onFootnote(text: String, url: String)
     fun onHighlightTap(id: String)
     fun onImage(url: String)
     fun onSelection(action: SelectionAction, json: String)
@@ -68,6 +69,7 @@ class BookWebView(context: Context, private val bridge: ReaderBridge) : WebView(
         @JavascriptInterface fun onEdge(d: Int) = main.post { bridge.onEdge(d) }.let { }
         @JavascriptInterface fun onTap() = main.post { bridge.onTap() }.let { }
         @JavascriptInterface fun onLink(u: String) = main.post { bridge.onLink(u) }.let { }
+        @JavascriptInterface fun onFootnote(t: String, u: String) = main.post { bridge.onFootnote(t, u) }.let { }
         @JavascriptInterface fun onHighlightTap(id: String) = main.post { bridge.onHighlightTap(id) }.let { }
         @JavascriptInterface fun onImage(u: String) = main.post { bridge.onImage(u) }.let { }
         @JavascriptInterface fun log(s: String) = android.util.Log.d("BookShelfJS", s).let { }

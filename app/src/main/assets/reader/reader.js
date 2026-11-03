@@ -5,7 +5,7 @@
   root.classList.add('bs-loading');
 
   var A = window.BSAndroid || { onReady: function () {}, onPage: function () {}, onEdge: function () {}, onTap: function () {},
-    onLink: function () {}, onHighlightTap: function () {}, onImage: function () {}, log: function () {} };
+    onLink: function () {}, onFootnote: function () {}, onHighlightTap: function () {}, onImage: function () {}, log: function () {} };
   var BS = window.BS = {};
   var cfg = null, W = 0, pageCount = 1, page = 0, anim = null, ready = false;
 
@@ -282,6 +282,45 @@
     BS.configure(cfg);
   });
 
+  // ---------- footnotes ----------
+  var EPUB_NS = 'http://www.idpf.org/2007/ops';
+  function typeOf(e) {
+    if (!e || !e.getAttribute) return '';
+    return ((e.getAttribute('epub:type') || '') + ' ' + ((e.getAttributeNS && e.getAttributeNS(EPUB_NS, 'type')) || '') + ' ' + (e.getAttribute('role') || '')).toLowerCase();
+  }
+  function isNoteRef(a) {
+    if (/noteref/.test(typeOf(a))) return true;
+    var t = a.textContent.trim();
+    if (!t || t.length > 5) return false;
+    return !!a.closest('sup') || /^[\[(]?([0-9]{1,3}|[*†‡§¶]|[ivx]{1,4}|[a-z])[\])]?$/i.test(t);
+  }
+  function noteFrom(doc, id) {
+    var el = doc.getElementById(id) || doc.querySelector('[name="' + id + '"]');
+    if (!el) return null;
+    var blk = el;
+    if (!/footnote|endnote|rearnote|note/.test(typeOf(blk)) && blk.textContent.trim().length < 3) blk = blk.parentElement || blk;
+    var host = blk.closest ? (blk.closest('aside,li,dd,p,section,div') || blk) : blk;
+    if (host.textContent.trim().length > 3000 && blk !== host) host = blk;
+    var txt = host.textContent.replace(/\s+/g, ' ').trim();
+    return txt.length ? txt.slice(0, 3000) : null;
+  }
+  function tryFootnote(a) {
+    var url; try { url = new URL(a.href); } catch (e) { return false; }
+    if (url.host !== location.host || !url.hash || !isNoteRef(a)) return false;
+    var id = decodeURIComponent(url.hash.slice(1));
+    if (url.pathname === location.pathname) {
+      var t = noteFrom(document, id);
+      if (!t) return false;
+      A.onFootnote(t, a.href); return true;
+    }
+    fetch(url.href.split('#')[0]).then(function (r) { return r.text(); }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var t = noteFrom(doc, id);
+      if (t) A.onFootnote(t, a.href); else A.onLink(a.href);
+    }).catch(function () { A.onLink(a.href); });
+    return true;
+  }
+
   // ---------- touch: swipe to turn ----------
   var sx = 0, sy = 0, st = 0, dragging = false, decided = false, baseX = 0, moved = false;
   function hasSel() { var s = window.getSelection(); return s && !s.isCollapsed; }
@@ -325,7 +364,7 @@
     var a = e.target.closest ? e.target.closest('a[href]') : null;
     if (a) {
       e.preventDefault();
-      A.onLink(a.href);
+      if (!tryFootnote(a)) A.onLink(a.href);
       return;
     }
     var m = e.target.closest ? e.target.closest('mark.bs-hl') : null;
