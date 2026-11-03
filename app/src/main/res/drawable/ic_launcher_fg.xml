@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Open book: two pages meeting at a spine -->
+    <path
+        android:fillColor="@color/ic_fg"
+        android:pathData="M54,40 C47,35 38,33.5 30,34 L30,72 C38,71.5 47,73 54,77 Z" />
+    <path
+        android:fillColor="@color/ic_fg"
+        android:fillAlpha="0.72"
+        android:pathData="M54,40 C61,35 70,33.5 78,34 L78,72 C70,71.5 61,73 54,77 Z" />
+    <!-- Ribbon bookmark -->
+    <path
+        android:fillColor="#F2E3C2"
+        android:pathData="M64,36.2 L70,35.5 L70,50 L67,47.5 L64,50 Z" />
+</vector>
