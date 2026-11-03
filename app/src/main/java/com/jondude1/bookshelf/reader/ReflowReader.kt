@@ -148,6 +148,28 @@ class ReflowController(
     /** Text size label shown briefly after a pinch. */
     var sizeToast by mutableStateOf<String?>(null)
 
+    private var brightBase: Float? = null
+    private var brightNow = 0.5f
+
+    /** Slide along the left edge: delta is the fraction of screen travelled since the touch began. */
+    override fun onBright(delta: Double, done: Boolean) {
+        val activity = context as? android.app.Activity ?: return
+        if (done) {
+            brightBase = null
+            Graph.prefs.updateReader { it.copy(brightness = brightNow) }
+            scope.launch { kotlinx.coroutines.delay(900); sizeToast = null }
+            return
+        }
+        val base = brightBase ?: run {
+            val cur = Graph.prefs.reader.value.brightness
+            val b = if (cur >= 0) cur else activity.window.attributes.screenBrightness.takeIf { it >= 0 } ?: 0.5f
+            brightBase = b; b
+        }
+        brightNow = (base + delta.toFloat()).coerceIn(0.01f, 1f)
+        activity.window.attributes = activity.window.attributes.apply { screenBrightness = brightNow }
+        sizeToast = "Brightness ${(brightNow * 100).toInt()}%"
+    }
+
     override fun onPinch(ratio: Double) {
         var v = 0f
         Graph.prefs.updateReader { p ->
@@ -204,7 +226,7 @@ class ReflowController(
             put("margin", prefs.margin.coerceIn(0, 2)); put("justify", prefs.justify); put("hyphenate", prefs.hyphenate)
             put("publisher", prefs.publisherStyles); put("spread", spread); put("tapZones", prefs.tapZones)
             put("top", topDp); put("bottom", bottomDp); put("dropStyles", false)
-            put("letter", prefs.letterSpacing); put("para", prefs.paragraphs.lowercase())
+            put("edgeBrightness", prefs.edgeBrightness); put("letter", prefs.letterSpacing); put("para", prefs.paragraphs.lowercase())
             put("turn", when (prefs.pageTurn) { "FADE" -> "fade"; "NONE" -> "none"; else -> "slide" })
         }.toString()
         web.setBackgroundColor(android.graphics.Color.argb(255, (colors.bg.red * 255).toInt(), (colors.bg.green * 255).toInt(), (colors.bg.blue * 255).toInt()))

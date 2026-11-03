@@ -87,6 +87,8 @@ data class ReaderPrefs(
     val recentSearches: List<String> = emptyList(),
     /** Read-aloud voice name (null = system default) */
     val ttsVoice: String? = null,
+    /** Slide up/down along the left edge to change brightness */
+    val edgeBrightness: Boolean = true,
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",

@@ -28,6 +28,7 @@ interface ReaderBridge {
     fun onLink(url: String)
     fun onFootnote(text: String, url: String)
     fun onPinch(ratio: Double)
+    fun onBright(delta: Double, done: Boolean)
     fun onHighlightTap(id: String)
     fun onImage(url: String)
     fun onSelection(action: SelectionAction, json: String)
@@ -70,6 +71,7 @@ class BookWebView(context: Context, private val bridge: ReaderBridge) : WebView(
         @JavascriptInterface fun onEdge(d: Int) = main.post { bridge.onEdge(d) }.let { }
         @JavascriptInterface fun onTap() = main.post { bridge.onTap() }.let { }
         @JavascriptInterface fun onLink(u: String) = main.post { bridge.onLink(u) }.let { }
+        @JavascriptInterface fun onBright(d: Double, done: Boolean) = main.post { bridge.onBright(d, done) }.let { }
         @JavascriptInterface fun onPinch(r: Double) = main.post { bridge.onPinch(r) }.let { }
         @JavascriptInterface fun onFootnote(t: String, u: String) = main.post { bridge.onFootnote(t, u) }.let { }
         @JavascriptInterface fun onHighlightTap(id: String) = main.post { bridge.onHighlightTap(id) }.let { }

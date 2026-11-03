@@ -284,6 +284,7 @@ fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolea
 
         SectionLabel("Controls", colors)
         ToggleRow("Tap page edges to turn", null, prefs.tapZones, colors) { v -> onChange { it.copy(tapZones = v) } }
+        if (reflow) ToggleRow("Slide on the left edge for brightness", null, prefs.edgeBrightness, colors) { v -> onChange { it.copy(edgeBrightness = v) } }
         ToggleRow("Volume buttons turn pages", null, prefs.volumeKeys, colors) { v -> onChange { it.copy(volumeKeys = v) } }
         ToggleRow("Keep screen on", null, prefs.keepScreenOn, colors) { v -> onChange { it.copy(keepScreenOn = v) } }
         ToggleRow("Show clock", null, prefs.showClock, colors) { v -> onChange { it.copy(showClock = v) } }
