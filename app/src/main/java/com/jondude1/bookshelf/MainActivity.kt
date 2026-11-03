@@ -197,7 +197,7 @@ private fun App() {
                         composable("home") {
                             HomeScreen(onOpen = { openBook(it.id) }, onRead = { read(it.id) }, onSeries = ::series,
                                 onLibrary = { switchTab(nav, "library") }, onStats = { switchTab(nav, "stats") },
-                                onCollection = { nav.navigate("collection/$it") })
+                                onCollection = { nav.navigate("collection/$it") }, onNotes = { nav.navigate("notes") })
                         }
                         composable("library") { LibraryScreen(onOpen = { openBook(it.id) }, onSeries = ::series, onAuthor = ::author, onCollection = { nav.navigate("collection/$it") }) }
                         composable("collection/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
@@ -205,6 +205,7 @@ private fun App() {
                         }
                         composable("search") { SearchScreen(onOpen = { openBook(it.id) }, onSeries = ::series, onAuthor = ::author) }
                         composable("stats") { StatsScreen() }
+                        composable("notes") { com.jondude1.bookshelf.ui.NotesScreen(onBack = { nav.popBackStack() }, onRead = { read(it.id) }, onOpen = { openBook(it.id) }) }
                         composable("settings") {
                             SettingsScreen(onSignedOut = { nav.navigate("login") { popUpTo(0) { inclusive = true } } }, onOpenBook = ::openBook)
                         }

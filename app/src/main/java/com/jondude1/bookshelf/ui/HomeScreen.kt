@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,7 +71,7 @@ import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String) -> Unit, onLibrary: () -> Unit, onStats: () -> Unit, onCollection: (String) -> Unit = {}) {
+fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String) -> Unit, onLibrary: () -> Unit, onStats: () -> Unit, onCollection: (String) -> Unit = {}, onNotes: () -> Unit = {}) {
     val collections by Graph.library.collections.collectAsState()
     val books by Graph.library.books.collectAsState()
     val progress by Graph.progress.all.collectAsState()
@@ -125,6 +126,7 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
                         Text(greeting() + if (user.isNotBlank()) ", ${user.replaceFirstChar { it.uppercase() }}" else "", style = MaterialTheme.typography.headlineLarge)
                         Text("${books.size} books on Athena", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    androidx.compose.material3.IconButton(onClick = onNotes) { Icon(Icons.Default.EditNote, "Notes") }
                     ConnectionChip(route)
                 }
                 (loadState as? LoadState.Loading)?.let { s ->
