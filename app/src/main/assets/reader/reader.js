@@ -5,7 +5,7 @@
   root.classList.add('bs-loading');
 
   var A = window.BSAndroid || { onReady: function () {}, onPage: function () {}, onEdge: function () {}, onTap: function () {},
-    onLink: function () {}, onFootnote: function () {}, onHighlightTap: function () {}, onImage: function () {}, log: function () {} };
+    onLink: function () {}, onPinch: function () {}, onFootnote: function () {}, onHighlightTap: function () {}, onImage: function () {}, log: function () {} };
   var BS = window.BS = {};
   var cfg = null, W = 0, pageCount = 1, page = 0, anim = null, ready = false;
 
@@ -336,16 +336,25 @@
   }
 
   // ---------- touch: swipe to turn ----------
-  var sx = 0, sy = 0, st = 0, dragging = false, decided = false, baseX = 0, moved = false;
+  var sx = 0, sy = 0, st = 0, dragging = false, decided = false, baseX = 0, moved = false, pinch0 = 0, pinchR = 1;
+  function dist(t) { var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY; return Math.sqrt(dx * dx + dy * dy) || 1; }
   function hasSel() { var s = window.getSelection(); return s && !s.isCollapsed; }
 
   document.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) { pinch0 = dist(e.touches); pinchR = 1; decided = true; dragging = false; animateTo(page, true); return; }
     if (e.touches.length > 1) { decided = true; dragging = false; return; }
     var t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
     dragging = false; decided = false; moved = false; stopAnim(); baseX = page * W;
   }, { passive: true });
 
   document.addEventListener('touchmove', function (e) {
+    if (e.touches.length === 2 && pinch0) {
+      e.preventDefault();
+      pinchR = Math.max(0.5, Math.min(2.5, dist(e.touches) / pinch0));
+      document.body.style.transformOrigin = 'center top';
+      document.body.style.opacity = String(0.55 + 0.45 * Math.min(1, Math.abs(pinchR - 1) < 0.08 ? 1 : 0.85));
+      return;
+    }
     if (e.touches.length > 1) return;
     var t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
     if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
@@ -365,6 +374,11 @@
   }, { passive: false });
 
   document.addEventListener('touchend', function (e) {
+    if (pinch0 && e.touches.length < 2) {
+      var r = pinchR; pinch0 = 0; document.body.style.opacity = '1';
+      if (Math.abs(r - 1) > 0.08) A.onPinch(r);
+      return;
+    }
     if (!dragging) return;
     var t = e.changedTouches[0], dx = t.clientX - sx, dt = Math.max(1, Date.now() - st), v = dx / dt;
     dragging = false;

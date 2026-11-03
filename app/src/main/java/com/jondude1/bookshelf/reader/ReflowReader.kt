@@ -145,6 +145,19 @@ class ReflowController(
 
     override fun onFootnote(text: String, url: String) { footnote = text to url }
 
+    /** Text size label shown briefly after a pinch. */
+    var sizeToast by mutableStateOf<String?>(null)
+
+    override fun onPinch(ratio: Double) {
+        var v = 0f
+        Graph.prefs.updateReader { p ->
+            v = ((p.fontScale * Math.pow(ratio, 0.6)).toFloat().coerceIn(0.7f, 2.2f) * 20).toInt() / 20f
+            p.copy(fontScale = v)
+        }
+        sizeToast = "Text size ${(v * 100).toInt()}%"
+        scope.launch { kotlinx.coroutines.delay(1400); sizeToast = null }
+    }
+
     private var startSpec: String = """{"type":"first"}"""
     private var configJson: String = "{}"
     private var ttsContinue = false
@@ -509,6 +522,10 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
             topInset = topDp,
         )
 
+        controller.sizeToast?.let { t ->
+            Text(t, color = colors.fg, style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.align(Alignment.Center).clip(RoundedCornerShape(50)).background(colors.panel).padding(horizontal = 18.dp, vertical = 10.dp))
+        }
         androidx.compose.animation.AnimatedVisibility(
             visible = controller.returnPoint != null,
             enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
