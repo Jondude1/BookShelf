@@ -267,6 +267,7 @@ fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolea
         Text("Auto shows two pages side by side on a tablet in landscape.", color = colors.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
 
         if (isComic) ToggleRow("Right-to-left (manga)", null, prefs.comicRightToLeft, colors) { v -> onChange { it.copy(comicRightToLeft = v) } }
+        if (isPdf) ToggleRow("Crop page margins", "Trims white borders so text is bigger on small screens", prefs.pdfCropMargins, colors) { v -> onChange { it.copy(pdfCropMargins = v) } }
         if (isPdf) ToggleRow("Invert PDF pages in dark themes", null, prefs.invertPdfAtNight, colors) { v -> onChange { it.copy(invertPdfAtNight = v) } }
 
         SectionLabel("Light", colors)

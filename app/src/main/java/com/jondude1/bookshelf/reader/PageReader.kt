@@ -158,7 +158,7 @@ fun PageReader(source: PageSource, meta: Book, initial: ReadingProgress?, sessio
                     val pages = pagesOf(slot).let { if (rtl) it.reversed() else it }
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                         pages.forEach { p ->
-                            PageImage(source, p, widthPx / pages.size, invert, Modifier.weight(1f, fill = false).fillMaxHeight())
+                            PageImage(source, p, widthPx / pages.size, invert, prefs.pdfCropMargins, Modifier.weight(1f, fill = false).fillMaxHeight())
                         }
                     }
                 }
@@ -249,8 +249,9 @@ private fun PdfSearch(source: PageSource, colors: ReaderColors, onPick: (Int) ->
 }
 
 @Composable
-private fun PageImage(source: PageSource, index: Int, targetWidth: Int, invert: Boolean, modifier: Modifier) {
-    val bmp by produceState<Bitmap?>(null, index, targetWidth) {
+private fun PageImage(source: PageSource, index: Int, targetWidth: Int, invert: Boolean, crop: Boolean, modifier: Modifier) {
+    val bmp by produceState<Bitmap?>(null, index, targetWidth, crop) {
+        (source as? PdfSource)?.crop = crop
         value = source.render(index, (targetWidth * 1.6f).toInt())
     }
     val b = bmp

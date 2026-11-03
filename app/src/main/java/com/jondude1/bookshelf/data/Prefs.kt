@@ -89,6 +89,8 @@ data class ReaderPrefs(
     val ttsVoice: String? = null,
     /** Slide up/down along the left edge to change brightness */
     val edgeBrightness: Boolean = true,
+    /** Trim white margins from PDF pages */
+    val pdfCropMargins: Boolean = false,
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",

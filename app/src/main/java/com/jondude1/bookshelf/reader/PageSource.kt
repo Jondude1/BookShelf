@@ -39,17 +39,48 @@ class PdfSource(file: File) : PageSource {
         }
     }
 
+    /** When true, white page margins are trimmed so the text fills the screen. */
+    @Volatile var crop = false
+    private val bounds = HashMap<Int, android.graphics.RectF>()
+
+    /** Content bounds as fractions of the page, found from a small preview render. */
+    private fun contentBounds(page: PdfRenderer.Page, index: Int): android.graphics.RectF = bounds.getOrPut(index) {
+        val w = 240; val h = (w * page.height.toFloat() / page.width).toInt().coerceAtLeast(1)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        bmp.eraseColor(Color.WHITE)
+        page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h); bmp.recycle()
+        fun ink(c: Int) = (Color.red(c) + Color.green(c) + Color.blue(c)) < 690
+        var top = h; var bottom = -1; var left = w; var right = -1
+        for (y in 0 until h) for (x in 0 until w) if (ink(px[y * w + x])) {
+            if (y < top) top = y; if (y > bottom) bottom = y; if (x < left) left = x; if (x > right) right = x
+        }
+        if (bottom < 0 || right - left < w * 0.3f) android.graphics.RectF(0f, 0f, 1f, 1f)
+        else {
+            val pad = 0.02f
+            android.graphics.RectF((left / w.toFloat() - pad).coerceAtLeast(0f), (top / h.toFloat() - pad).coerceAtLeast(0f),
+                (right / w.toFloat() + pad).coerceAtMost(1f), (bottom / h.toFloat() + pad).coerceAtMost(1f))
+        }
+    }
+
     override suspend fun render(index: Int, targetWidth: Int): Bitmap? = withContext(Dispatchers.IO) {
         lock.withLock {
             synchronized(renderer) {
                 runCatching {
                     renderer.openPage(index).use { page ->
                         val w = targetWidth.coerceIn(200, 2600)
-                        val h = (w * page.height.toFloat() / page.width).toInt().coerceAtLeast(1)
+                        val r = if (crop) contentBounds(page, index) else android.graphics.RectF(0f, 0f, 1f, 1f)
+                        val cw = page.width * r.width(); val ch = page.height * r.height()
+                        val h = (w * ch / cw).toInt().coerceAtLeast(1)
                         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
                         bmp.eraseColor(Color.WHITE)
-                        page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        aspects[index] = page.width.toFloat() / page.height
+                        val scale = w / cw
+                        val m = android.graphics.Matrix().apply {
+                            postScale(scale, scale)
+                            postTranslate(-page.width * r.left * scale, -page.height * r.top * scale)
+                        }
+                        page.render(bmp, null, m, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        aspects[index] = cw / ch
                         bmp
                     }
                 }.getOrNull()
