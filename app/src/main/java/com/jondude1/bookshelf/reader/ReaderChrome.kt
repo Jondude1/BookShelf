@@ -145,7 +145,28 @@ fun ReaderChrome(
                 var dragValue by remember { mutableFloatStateOf(fraction) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(pageLabel, color = colors.muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                    Text("${((if (dragging) dragValue else fraction) * 100).toInt()}%", color = colors.fg, style = MaterialTheme.typography.labelLarge)
+                    var jump by remember { mutableStateOf(false) }
+                    Text("${((if (dragging) dragValue else fraction) * 100).toInt()}%", color = colors.fg, style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { jump = true }.padding(horizontal = 8.dp, vertical = 4.dp))
+                    if (jump) {
+                        var text by remember { mutableStateOf("${(fraction * 100).toInt()}") }
+                        val pct = text.toIntOrNull()
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { jump = false },
+                            containerColor = colors.bg, titleContentColor = colors.fg, textContentColor = colors.fg,
+                            title = { Text("Go to") },
+                            text = {
+                                androidx.compose.material3.OutlinedTextField(text, { v -> text = v.filter { it.isDigit() }.take(3) }, singleLine = true,
+                                    suffix = { Text("%", color = colors.muted) },
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                            },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(enabled = pct != null && pct in 0..100,
+                                    onClick = { jump = false; onSeek((pct ?: 0) / 100f) }) { Text("Go", color = colors.accent) }
+                            },
+                            dismissButton = { androidx.compose.material3.TextButton(onClick = { jump = false }) { Text("Cancel", color = colors.muted) } },
+                        )
+                    }
                 }
                 Slider(
                     value = if (dragging) dragValue else fraction,
