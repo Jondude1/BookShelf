@@ -149,6 +149,34 @@ fun SettingsScreen(onSignedOut: () -> Unit, onOpenBook: (String) -> Unit) {
             }
         }
 
+        Card("Backup") {
+            val backupResult = remember { mutableStateOf<String?>(null) }
+            val exporter = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                if (uri != null) backupResult.value = runCatching {
+                    val b = com.jondude1.bookshelf.data.Backup(annotations = Graph.annotations.all(), stats = Graph.stats.data.value, progress = Graph.progress.all.value)
+                    context.contentResolver.openOutputStream(uri)!!.use { it.write(com.jondude1.bookshelf.data.JsonFmt.encodeToString(com.jondude1.bookshelf.data.Backup.serializer(), b).toByteArray()) }
+                    "Saved ${b.annotations.values.sumOf { it.highlights.size }} highlights, ${b.annotations.values.sumOf { it.bookmarks.size }} bookmarks and your stats"
+                }.getOrElse { "Backup failed: ${it.message}" }
+            }
+            val importer = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) backupResult.value = runCatching {
+                    val text = context.contentResolver.openInputStream(uri)!!.use { String(it.readBytes()) }
+                    val b = com.jondude1.bookshelf.data.JsonFmt.decodeFromString(com.jondude1.bookshelf.data.Backup.serializer(), text)
+                    Graph.annotations.merge(b.annotations); Graph.stats.merge(b.stats); Graph.progress.merge(b.progress)
+                    "Restored ${b.annotations.values.sumOf { it.highlights.size }} highlights and your reading history"
+                }.getOrElse { "That file isn't a BookShelf backup" }
+            }
+            Text("Highlights, notes, bookmarks, reading stats and positions — saved to a file you choose (Drive, Downloads…).",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { exporter.launch("BookShelf-backup-${java.time.LocalDate.now()}.json") }) { Text("Back up") }
+                OutlinedButton(onClick = { importer.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) }) { Text("Restore") }
+            }
+            backupResult.value?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+        }
+
         Card("App") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

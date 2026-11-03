@@ -190,6 +190,17 @@ class ProgressRepository(context: Context, private val client: AbsClient, privat
         pushDirty()
     }
 
+    /** Restores positions from a backup; newer entries win. */
+    fun merge(incoming: Map<String, ReadingProgress>) {
+        _all.update { cur ->
+            val out = cur.toMutableMap()
+            incoming.forEach { (id, p) -> if ((cur[id]?.updatedAt ?: 0) < p.updatedAt) out[id] = p.copy(dirty = true) }
+            out
+        }
+        persist()
+        scope.launch { pushDirty() }
+    }
+
     /** Freshest position for a book just before opening it. */
     suspend fun resolveForOpen(id: String): ReadingProgress? {
         val local = get(id)
@@ -317,6 +328,20 @@ class AnnotationRepository(context: Context) {
 
     fun allBooksWithNotes(): List<String> = dir.listFiles().orEmpty().map { it.nameWithoutExtension }
 
+    fun all(): Map<String, Annotations> = allBooksWithNotes().associateWith { flow(it).value }
+
+    /** Restores annotations, keeping anything already on this device. */
+    fun merge(incoming: Map<String, Annotations>) {
+        incoming.forEach { (id, a) ->
+            edit(id) { cur ->
+                cur.copy(
+                    highlights = (cur.highlights + a.highlights).distinctBy { it.id },
+                    bookmarks = (cur.bookmarks + a.bookmarks).distinctBy { it.id },
+                )
+            }
+        }
+    }
+
     /** Markdown export of every highlight and note for one book. */
     fun exportMarkdown(book: Book): String {
         val a = flow(book.id).value
@@ -374,6 +399,21 @@ class StatsRepository(context: Context, private val scope: CoroutineScope) {
         scope.launch(Dispatchers.IO) { store.save(_data.value) }
     }
 
+    /** Restores stats, taking the larger value for each day and book. */
+    fun merge(incoming: StatsData) {
+        _data.update { d ->
+            d.copy(
+                days = (d.days.keys + incoming.days.keys).associateWith { k ->
+                    val a = d.days[k]; val b = incoming.days[k]
+                    if (a == null) b!! else if (b == null) a else DayStat(maxOf(a.seconds, b.seconds), maxOf(a.pages, b.pages))
+                },
+                finished = incoming.finished + d.finished,
+                books = (d.books.keys + incoming.books.keys).associateWith { maxOf(d.books[it] ?: 0, incoming.books[it] ?: 0) },
+            )
+        }
+        scope.launch(Dispatchers.IO) { store.save(_data.value) }
+    }
+
     fun markFinished(id: String) {
         if (_data.value.finished.containsKey(id)) return
         _data.update { it.copy(finished = it.finished + (id to LocalDate.now().toString())) }
@@ -389,3 +429,12 @@ class StatsRepository(context: Context, private val scope: CoroutineScope) {
         return n
     }
 }
+
+@Serializable
+data class Backup(
+    val version: Int = 1,
+    val createdAt: Long = System.currentTimeMillis(),
+    val annotations: Map<String, Annotations> = emptyMap(),
+    val stats: StatsData = StatsData(),
+    val progress: Map<String, ReadingProgress> = emptyMap(),
+)
