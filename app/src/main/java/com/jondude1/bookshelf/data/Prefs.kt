@@ -80,6 +80,10 @@ data class ReaderPrefs(
     val showClock: Boolean = true,
     /** SLIDE, FADE or NONE */
     val pageTurn: String = "SLIDE",
+    /** Extra letter spacing in em (0 = book default) */
+    val letterSpacing: Float = 0f,
+    /** BOOK, INDENT or SPACED */
+    val paragraphs: String = "BOOK",
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",

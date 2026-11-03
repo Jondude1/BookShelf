@@ -43,6 +43,9 @@
     }
     s += 'p{text-align:' + (c.justify ? 'justify' : 'start') + ' !important;' +
       (c.hyphenate ? '-webkit-hyphens:auto;hyphens:auto;' : '-webkit-hyphens:manual;hyphens:manual;') + 'orphans:2;widows:2}';
+    if (c.letter) s += 'body{letter-spacing:' + c.letter + 'em !important}';
+    if (c.para === 'indent') s += 'p{text-indent:1.4em !important;margin-top:0 !important;margin-bottom:0 !important}h1+p,h2+p,h3+p,hr+p,p:first-child{text-indent:0 !important}';
+    if (c.para === 'spaced') s += 'p{text-indent:0 !important;margin-top:0 !important;margin-bottom:0.85em !important}';
     s += 'img,svg,video,image{max-width:100% !important;max-height:' + (vh - top - bottom - 8) + 'px !important;' +
       'height:auto;object-fit:contain;break-inside:avoid;-webkit-column-break-inside:avoid}';
     s += 'svg{width:auto}';

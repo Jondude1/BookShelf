@@ -234,6 +234,15 @@ fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolea
             }
             LabeledSlider("Text size", "${(prefs.fontScale * 100).toInt()}%", prefs.fontScale, 0.7f..2.2f, colors) { v -> onChange { it.copy(fontScale = (v * 20).toInt() / 20f) } }
             LabeledSlider("Line spacing", "%.2f".format(prefs.lineHeight), prefs.lineHeight, 1.1f..2.2f, colors) { v -> onChange { it.copy(lineHeight = (v * 20).toInt() / 20f) } }
+            LabeledSlider("Letter spacing", if (prefs.letterSpacing < 0.005f) "Default" else "+%.2f em".format(prefs.letterSpacing), prefs.letterSpacing, 0f..0.12f, colors) { v ->
+                onChange { it.copy(letterSpacing = (v * 100).toInt() / 100f) }
+            }
+            SectionLabel("Paragraphs", colors)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("BOOK" to "Book style", "INDENT" to "Indented", "SPACED" to "Spaced").forEach { (k, l) ->
+                    FilterChip(selected = prefs.paragraphs == k, onClick = { onChange { it.copy(paragraphs = k) } }, label = { Text(l) })
+                }
+            }
             SectionLabel("Margins", colors)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Narrow", "Normal", "Wide").forEachIndexed { i, l ->
