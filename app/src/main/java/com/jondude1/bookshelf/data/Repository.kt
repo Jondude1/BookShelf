@@ -314,6 +314,8 @@ data class StatsData(
     val finished: Map<String, String> = emptyMap(),
     /** Rolling average seconds per page, per book format family */
     val secondsPerPage: Double = 45.0,
+    /** Seconds spent reading each book, by item id */
+    val books: Map<String, Long> = emptyMap(),
 )
 
 class StatsRepository(context: Context, private val scope: CoroutineScope) {
@@ -321,7 +323,7 @@ class StatsRepository(context: Context, private val scope: CoroutineScope) {
     private val _data = MutableStateFlow(store.load())
     val data: StateFlow<StatsData> = _data
 
-    fun record(seconds: Long, pages: Int) {
+    fun record(seconds: Long, pages: Int, bookId: String? = null) {
         if (seconds <= 0 && pages <= 0) return
         val day = LocalDate.now().toString()
         _data.update { d ->
@@ -330,7 +332,8 @@ class StatsRepository(context: Context, private val scope: CoroutineScope) {
                 val sample = (seconds.toDouble() / pages).coerceIn(5.0, 600.0)
                 d.secondsPerPage * 0.85 + sample * 0.15
             } else d.secondsPerPage
-            d.copy(days = d.days + (day to DayStat(cur.seconds + seconds, cur.pages + pages)), secondsPerPage = spp)
+            val books = if (bookId != null && seconds > 0) d.books + (bookId to ((d.books[bookId] ?: 0) + seconds)) else d.books
+            d.copy(days = d.days + (day to DayStat(cur.seconds + seconds, cur.pages + pages)), secondsPerPage = spp, books = books)
         }
         scope.launch(Dispatchers.IO) { store.save(_data.value) }
     }

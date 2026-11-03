@@ -79,7 +79,7 @@ class ReadingSession(val book: Book, val onBack: () -> Unit) {
         val now = System.currentTimeMillis()
         val gap = (now - lastTurn) / 1000
         lastTurn = now
-        Graph.stats.record(if (gap in 1..180) gap else 0, 1)
+        Graph.stats.record(if (gap in 1..180) gap else 0, 1, book.id)
     }
 
     fun nearEnd() {

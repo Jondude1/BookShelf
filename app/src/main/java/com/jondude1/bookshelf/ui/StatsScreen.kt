@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,6 +88,26 @@ fun StatsScreen() {
                 days.forEachIndexed { i, d ->
                     Text(if (i % 2 == 1) d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()) else "",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        val library by Graph.library.books.collectAsState()
+        val mostRead = remember(data.books, library) {
+            val byId = library.associateBy { it.id }
+            data.books.entries.sortedByDescending { it.value }.mapNotNull { (id, secs) -> byId[id]?.let { it to secs } }.take(6)
+        }
+        if (mostRead.isNotEmpty()) {
+            Text("Most time spent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 28.dp, bottom = 8.dp))
+            mostRead.forEach { (b, secs) ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    BookCover(b, Modifier.width(36.dp), corner = 3.dp, elevation = 2.dp, width = 120)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(b.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        if (b.author.isNotBlank()) Text(b.author, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    Text(formatDuration(secs), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

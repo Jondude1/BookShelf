@@ -182,6 +182,8 @@ fun BookDetailScreen(bookId: String, onBack: () -> Unit, onRead: (Book) -> Unit,
                 book.publishedYear?.takeIf { it.isNotBlank() }?.let { Pill(it.take(4)) }
                 book.publisher?.takeIf { it.isNotBlank() }?.let { Pill(it) }
                 book.language?.takeIf { it.isNotBlank() }?.let { Pill(it) }
+                val secs = Graph.stats.data.collectAsState().value.books[book.id] ?: 0
+                if (secs >= 60) Pill("${formatDuration(secs)} read")
                 if (annotations.highlights.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.EditNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Text(" ${annotations.highlights.size} highlights", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)

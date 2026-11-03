@@ -240,3 +240,8 @@ fun Modifier.bookActions(book: Book, onClick: () -> Unit): Modifier {
         menu = true
     })
 }
+
+fun formatDuration(seconds: Long): String {
+    val m = seconds / 60
+    return if (m < 60) "$m min" else "${m / 60} h ${m % 60} min"
+}
