@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FormatSize
@@ -102,6 +103,8 @@ fun ReaderChrome(
     bookmarked: Boolean,
     ttsAvailable: Boolean,
     ttsPlaying: Boolean,
+    sleepLabel: String? = null,
+    onSleep: () -> Unit = {},
     onBack: () -> Unit,
     onContents: () -> Unit,
     onSearch: (() -> Unit)?,
@@ -154,6 +157,7 @@ fun ReaderChrome(
                     ChromeButton(Icons.AutoMirrored.Filled.FormatListBulleted, "Contents", colors, onContents)
                     if (ttsAvailable) ChromeButton(if (ttsPlaying) Icons.Default.StopCircle else Icons.Default.Headphones,
                         if (ttsPlaying) "Stop" else "Listen", colors, onTts)
+                    if (sleepLabel != null) ChromeButton(Icons.Default.Bedtime, sleepLabel, colors, onSleep)
                     Spacer(Modifier.weight(1f))
                     if (timeLabel != null) Text(timeLabel, color = colors.muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 8.dp))
                     ChromeButton(Icons.Default.FormatSize, "Display", colors, onSettings)
@@ -204,7 +208,7 @@ private fun now() = LocalTime.now().format(DateTimeFormatter.ofPattern("h:mm"))
 // ---------------- Display settings ----------------
 
 @Composable
-fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolean, isPdf: Boolean, isComic: Boolean, onChange: ((ReaderPrefs) -> ReaderPrefs) -> Unit) {
+fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolean, isPdf: Boolean, isComic: Boolean, voices: List<Pair<String, String>> = emptyList(), onChange: ((ReaderPrefs) -> ReaderPrefs) -> Unit) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
         SectionLabel("Theme", colors)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -284,6 +288,15 @@ fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolea
         ToggleRow("Keep screen on", null, prefs.keepScreenOn, colors) { v -> onChange { it.copy(keepScreenOn = v) } }
         ToggleRow("Show clock", null, prefs.showClock, colors) { v -> onChange { it.copy(showClock = v) } }
         if (reflow) LabeledSlider("Read-aloud speed", "%.1fx".format(prefs.ttsRate), prefs.ttsRate, 0.6f..2.2f, colors) { v -> onChange { it.copy(ttsRate = (v * 10).toInt() / 10f) } }
+        if (reflow && voices.isNotEmpty()) {
+            SectionLabel("Read-aloud voice", colors)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = prefs.ttsVoice == null, onClick = { onChange { it.copy(ttsVoice = null) } }, label = { Text("System default") })
+                voices.forEach { (name, label) ->
+                    FilterChip(selected = prefs.ttsVoice == name, onClick = { onChange { it.copy(ttsVoice = name) } }, label = { Text(label) })
+                }
+            }
+        }
     }
 }
 

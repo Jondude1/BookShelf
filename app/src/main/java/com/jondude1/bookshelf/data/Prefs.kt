@@ -85,6 +85,8 @@ data class ReaderPrefs(
     /** BOOK, INDENT or SPACED */
     val paragraphs: String = "BOOK",
     val recentSearches: List<String> = emptyList(),
+    /** Read-aloud voice name (null = system default) */
+    val ttsVoice: String? = null,
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",

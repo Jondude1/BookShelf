@@ -61,6 +61,22 @@ class TtsReader(context: Context) {
         }
     }
 
+    /** Installed voices for the device language first, as (name, label). */
+    fun voices(): List<Pair<String, String>> = runCatching {
+        val lang = java.util.Locale.getDefault().language
+        tts.voices.orEmpty().filter { !it.isNetworkConnectionRequired || it.features?.contains("notInstalled") != true }
+            .sortedWith(compareBy({ it.locale.language != lang }, { it.locale.toLanguageTag() }, { it.name }))
+            .map { v -> v.name to "${v.locale.displayName} · ${v.name.substringAfterLast('-').take(16)}${if (v.isNetworkConnectionRequired) " (online)" else ""}" }
+            .take(40)
+    }.getOrDefault(emptyList())
+
+    fun useVoice(name: String?) {
+        runCatching {
+            if (name == null) tts.voice = tts.defaultVoice
+            else tts.voices?.firstOrNull { it.name == name }?.let { tts.voice = it }
+        }
+    }
+
     fun stop() { generation++; speaking = false; tts.stop() }
 
     fun shutdown() { stop(); tts.shutdown() }

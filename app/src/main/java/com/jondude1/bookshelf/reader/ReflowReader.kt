@@ -379,7 +379,8 @@ class ReflowController(
         tts.onBlock = { i -> web.evaluateJavascript("BS.ttsMark($i)", null) }
         tts.onFinished = {
             web.evaluateJavascript("BS.ttsClear()", null)
-            if (chapter < book.chapters.lastIndex) { ttsContinue = true; load(chapter + 1, """{"type":"first"}""", 1) }
+            if (sleepMode == -1) { cancelSleep() }
+            else if (chapter < book.chapters.lastIndex) { ttsContinue = true; load(chapter + 1, """{"type":"first"}""", 1) }
         }
     }
 
@@ -389,11 +390,47 @@ class ReflowController(
             val blocks = runCatching { JsonFmt.decodeFromString(ListSerializer(String.serializer()), json) }.getOrDefault(emptyList())
             val p = Graph.prefs.reader.value
             if (blocks.isEmpty() && chapter < book.chapters.lastIndex) { ttsContinue = true; load(chapter + 1, """{"type":"first"}"""); return@evaluateJavascript }
+            tts.useVoice(p.ttsVoice)
             tts.speak(blocks, p.ttsRate, p.ttsPitch)
         }
     }
 
-    fun stopTts() { ttsContinue = false; tts.stop(); web.evaluateJavascript("BS.ttsClear()", null) }
+    fun stopTts() { ttsContinue = false; tts.stop(); web.evaluateJavascript("BS.ttsClear()", null); cancelSleep() }
+
+    // ---------- sleep timer ----------
+    /** Minutes chosen (0 = off, -1 = end of chapter). */
+    var sleepMode by mutableIntStateOf(0); private set
+    var sleepLeftMin by mutableIntStateOf(0); private set
+    private var sleepJob: kotlinx.coroutines.Job? = null
+    private var sleepChapter = -1
+
+    fun cycleSleep() {
+        val order = listOf(0, 15, 30, 60, -1)
+        sleepMode = order[(order.indexOf(sleepMode) + 1) % order.size]
+        sleepJob?.cancel()
+        when {
+            sleepMode > 0 -> {
+                sleepLeftMin = sleepMode
+                sleepJob = scope.launch {
+                    val end = System.currentTimeMillis() + sleepMode * 60_000L
+                    while (System.currentTimeMillis() < end) {
+                        sleepLeftMin = ((end - System.currentTimeMillis()) / 60_000L + 1).toInt()
+                        kotlinx.coroutines.delay(15_000)
+                    }
+                    if (tts.speaking) stopTts() else cancelSleep()
+                }
+            }
+            sleepMode == -1 -> sleepChapter = chapter
+        }
+    }
+
+    private fun cancelSleep() { sleepJob?.cancel(); sleepMode = 0 }
+
+    val sleepLabel: String get() = when {
+        sleepMode > 0 -> "Sleep ${sleepLeftMin}m"
+        sleepMode == -1 -> "Sleep: chapter end"
+        else -> "Sleep"
+    }
 
     // ---------- helpers ----------
     private fun copy(text: String) {
@@ -505,6 +542,8 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
             bookmarked = annotations.bookmarks.isNotEmpty() && controller.currentBookmark() != null,
             ttsAvailable = controller.tts.ready,
             ttsPlaying = controller.tts.speaking,
+            sleepLabel = if (controller.tts.speaking) controller.sleepLabel else null,
+            onSleep = { controller.cycleSleep() },
             onBack = session.onBack,
             onContents = { sheet = "contents" },
             onSearch = { sheet = "search" },
@@ -520,7 +559,7 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
         ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = sheetState, containerColor = colors.bg.copy(alpha = 1f), contentColor = colors.fg,
             scrimColor = Color.Black.copy(alpha = if (sheet == "settings") 0.08f else 0.35f)) {
             when (sheet) {
-                "settings" -> ReaderSettingsPanel(prefs, colors, reflow = true, isPdf = false, isComic = false) { f -> Graph.prefs.updateReader(f) }
+                "settings" -> ReaderSettingsPanel(prefs, colors, reflow = true, isPdf = false, isComic = false, voices = remember { controller.tts.voices() }) { f -> Graph.prefs.updateReader(f) }
                 "contents" -> ContentsSheet(controller, annotations, colors) { sheet = null }
                 "search" -> SearchSheet(controller, colors) { sheet = null }
             }
