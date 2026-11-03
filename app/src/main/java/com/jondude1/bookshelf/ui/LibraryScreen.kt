@@ -71,7 +71,7 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
     var sortMenu by remember { mutableStateOf(false) }
 
     val filtered = remember(books, progress, offline, sort, shelf, format) {
-        books.filter { b ->
+        books.distinctBy { it.id }.filter { b ->
             val p = progress[b.id]
             (format == null || b.format == format) && when (shelf) {
                 Shelf.ALL -> true

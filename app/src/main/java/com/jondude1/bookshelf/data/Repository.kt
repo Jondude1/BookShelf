@@ -49,7 +49,7 @@ sealed interface DownloadState {
 
 class LibraryRepository(context: Context, private val client: AbsClient, private val prefs: Prefs, private val scope: CoroutineScope) {
     private val store = JsonFile(File(context.filesDir, "library.json"), ListSerializer(Book.serializer())) { emptyList() }
-    private val _books = MutableStateFlow(store.load())
+    private val _books = MutableStateFlow(store.load().distinctBy { it.id })
     val books: StateFlow<List<Book>> = _books
     private val _state = MutableStateFlow<LoadState>(LoadState.Idle)
     val state: StateFlow<LoadState> = _state
@@ -70,7 +70,7 @@ class LibraryRepository(context: Context, private val client: AbsClient, private
             if (libs.isEmpty()) throw AbsException("No book libraries on this Audiobookshelf server")
             val ids = if (libId.isNotBlank() && libs.any { it.id == libId }) listOf(libId) else libs.map { it.id }
             if (libId.isBlank() || libs.none { it.id == libId }) libId = ""
-            val items = ids.flatMap { id -> client.allEbookItems(id) { d, t -> _state.value = LoadState.Loading(d, t) } }
+            val items = ids.flatMap { id -> client.allEbookItems(id) { d, t -> _state.value = LoadState.Loading(d, t) } }.distinctBy { it.id }
             val old = _books.value.associateBy { it.id }
             val merged = items.map { it.toBook() }.map { b -> old[b.id]?.let { o -> o.mergedWith(b).copy(description = b.description ?: o.description) } ?: b }
             _books.value = merged
@@ -90,6 +90,7 @@ class LibraryRepository(context: Context, private val client: AbsClient, private
     }
 
     fun seriesBooks(name: String): List<Book> = _books.value
+        .distinctBy { it.id }
         .filter { b -> b.series.any { it.name.equals(name, true) } }
         .sortedWith(compareBy<Book> { b -> b.series.first { it.name.equals(name, true) }.sequenceNumber ?: Double.MAX_VALUE }.thenBy { it.sortTitle })
 

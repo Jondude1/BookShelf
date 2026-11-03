@@ -159,7 +159,7 @@ fun SectionHeader(title: String, subtitle: String? = null, action: String? = nul
 @Composable
 fun BookShelfRow(books: List<Book>, progress: Map<String, ReadingProgress>, offline: Set<String>, tileWidth: Dp = 118.dp, onOpen: (Book) -> Unit) {
     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        items(books, key = { it.id }) { b ->
+        items(books.distinctBy { it.id }, key = { it.id }) { b ->
             BookTile(b, progress[b.id], b.id in offline, Modifier.width(tileWidth)) { onOpen(b) }
         }
     }

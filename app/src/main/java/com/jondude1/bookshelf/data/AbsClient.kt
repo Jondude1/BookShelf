@@ -181,22 +181,25 @@ class AbsClient(private val prefs: Prefs) {
 
     suspend fun libraries(): List<AbsLibrary> = getJson("/api/libraries", AbsLibraries.serializer()).libraries
 
-    /** Every item with an ebook, fetched in pages. */
+    /** Every item with an ebook. Asks for everything at once (limit=0); pages only if the server caps it. */
     suspend fun allEbookItems(libraryId: String, onPage: (Int, Int) -> Unit = { _, _ -> }): List<AbsItem> {
-        val out = ArrayList<AbsItem>()
-        var page = 0
-        while (true) {
-            val p = getJson(
-                "/api/libraries/$libraryId/items", AbsItemsPage.serializer(),
-                mapOf("limit" to "250", "page" to page.toString(), "minified" to "1",
-                    "sort" to "media.metadata.title", "filter" to "ebooks.ZWJvb2s=")
-            )
-            out += p.results
-            onPage(out.size, p.total)
-            if (p.results.isEmpty() || out.size >= p.total) break
-            page++
+        val base = mapOf("minified" to "1", "sort" to "media.metadata.title", "filter" to "ebooks.ZWJvb2s=")
+        val first = getJson("/api/libraries/$libraryId/items", AbsItemsPage.serializer(), base + ("limit" to "0"))
+        val out = LinkedHashMap<String, AbsItem>()
+        first.results.forEach { out[it.id] = it }
+        onPage(out.size, first.total)
+        if (out.size < first.total) {
+            var page = 0
+            while (true) {
+                val p = getJson("/api/libraries/$libraryId/items", AbsItemsPage.serializer(),
+                    base + mapOf("limit" to "200", "page" to page.toString()))
+                p.results.forEach { out[it.id] = it }
+                onPage(out.size, p.total)
+                if (p.results.isEmpty() || out.size >= p.total || page > 500) break
+                page++
+            }
         }
-        return out.filter { it.media.ebookFormat != null || it.media.ebookFile != null }
+        return out.values.filter { it.media.ebookFormat != null || it.media.ebookFile != null }
     }
 
     suspend fun item(id: String): AbsItem = getJson("/api/items/$id", AbsItem.serializer(), mapOf("expanded" to "1"))

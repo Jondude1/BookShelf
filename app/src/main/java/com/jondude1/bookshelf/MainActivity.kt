@@ -48,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -122,7 +123,35 @@ private val tabs = listOf(
 private fun enc(s: String) = Uri.encode(s)
 
 @Composable
+private fun CrashDialog() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var report by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(CrashReporter.takeReport()) }
+    val r = report ?: return
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { report = null },
+        title = { Text("BookShelf closed unexpectedly") },
+        text = {
+            Column {
+                Text("Share this report so it can be fixed.", style = MaterialTheme.typography.bodyMedium)
+                Text(r.lineSequence().take(14).joinToString("\n"), style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 10.dp))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val i = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(android.content.Intent.EXTRA_TEXT, r)
+                context.startActivity(android.content.Intent.createChooser(i, "Share crash report"))
+                report = null
+            }) { Text("Share report") }
+        },
+        dismissButton = { TextButton(onClick = { report = null }) { Text("Close") } },
+    )
+}
+
+@Composable
 private fun App() {
+    CrashDialog()
     val nav = rememberNavController()
     val server by Graph.prefs.server.collectAsState()
     val backStack by nav.currentBackStackEntryAsState()

@@ -63,7 +63,7 @@ fun CollectionScreen(title: String, subtitle: String, books: List<Book>, onBack:
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
-            items(books, key = { it.id }) { b ->
+            items(books.distinctBy { it.id }, key = { it.id }) { b ->
                 Column {
                     if (numbered) {
                         val seq = b.series.firstOrNull { it.name.equals(title, true) }?.sequence
@@ -150,7 +150,7 @@ fun SearchScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (
             }
             if (results.isNotEmpty()) {
                 item { Label("Books") }
-                items(results, key = { it.id }) { b -> BookListRow(b, progress[b.id]?.fraction, progress[b.id]?.finished == true) { onOpen(b) } }
+                items(results.distinctBy { it.id }, key = { it.id }) { b -> BookListRow(b, progress[b.id]?.fraction, progress[b.id]?.finished == true) { onOpen(b) } }
             }
             if (terms.isNotEmpty() && results.isEmpty() && seriesHits.isEmpty() && authorHits.isEmpty()) item {
                 Text("Nothing matches “${q.trim()}”.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(24.dp))

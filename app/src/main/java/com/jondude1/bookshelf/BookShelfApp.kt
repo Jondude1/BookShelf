@@ -13,13 +13,15 @@ import com.jondude1.bookshelf.data.Prefs
 import com.jondude1.bookshelf.data.ProgressRepository
 import com.jondude1.bookshelf.data.StatsRepository
 import com.jondude1.bookshelf.update.Updater
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
-class BookShelfApp : Application(), ImageLoaderFactory {
+open class BookShelfApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
+        CrashReporter.install(this)
         Graph.init(this)
     }
 
@@ -35,7 +37,11 @@ class BookShelfApp : Application(), ImageLoaderFactory {
 /** Simple service locator — one of each, app-wide. */
 object Graph {
     lateinit var app: Application; private set
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /** Background work never takes the app down; failures are logged instead. */
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
+        android.util.Log.e("BookShelf", "Background task failed", e)
+        CrashReporter.record(e, fatal = false)
+    })
     lateinit var prefs: Prefs; private set
     lateinit var client: AbsClient; private set
     lateinit var library: LibraryRepository; private set
@@ -56,4 +62,30 @@ object Graph {
         stats = StatsRepository(app, scope)
         updater = Updater(app, scope)
     }
+}
+
+/** Saves the last crash so the next launch can show what went wrong. */
+object CrashReporter {
+    private var file: java.io.File? = null
+
+    fun install(app: Application) {
+        file = java.io.File(app.filesDir, "last_crash.txt")
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            record(e, fatal = true)
+            previous?.uncaughtException(t, e)
+        }
+    }
+
+    fun record(e: Throwable, fatal: Boolean) {
+        if (!fatal) return
+        runCatching {
+            val sw = java.io.StringWriter()
+            e.printStackTrace(java.io.PrintWriter(sw))
+            file?.writeText("BookShelf ${BuildConfig.VERSION_NAME} · Android ${android.os.Build.VERSION.RELEASE} · ${android.os.Build.MODEL}\n\n$sw")
+        }
+    }
+
+    /** Returns and clears the saved report, if any. */
+    fun takeReport(): String? = file?.takeIf { it.exists() }?.let { f -> runCatching { f.readText() }.getOrNull().also { f.delete() } }
 }

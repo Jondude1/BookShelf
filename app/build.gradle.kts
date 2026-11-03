@@ -52,6 +52,7 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
+            it.setForkEvery(1)
             it.systemProperty("robolectric.offline", "true")
             it.systemProperty("robolectric.dependency.dir", layout.buildDirectory.dir("robolectric").get().asFile.absolutePath)
         }

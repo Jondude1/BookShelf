@@ -90,15 +90,15 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
 
     val byId = remember(books) { books.associateBy { it.id } }
     val reading = remember(books, progress) {
-        progress.values.filter { !it.finished && it.fraction > 0.001 }.sortedByDescending { it.updatedAt }.mapNotNull { byId[it.itemId] }
+        progress.values.filter { !it.finished && it.fraction > 0.001 }.sortedByDescending { it.updatedAt }.mapNotNull { byId[it.itemId] }.distinctBy { it.id }
     }
     val upNext = remember(books, progress) {
         val finishedSeries = books.filter { progress[it.id]?.finished == true }.mapNotNull { it.primarySeries?.name }.distinct()
         finishedSeries.mapNotNull { name ->
             Graph.library.seriesBooks(name).firstOrNull { b -> progress[b.id]?.let { it.finished || it.fraction > 0.001 } != true }
-        }.filter { it !in reading }
+        }.filter { it !in reading }.distinctBy { it.id }
     }
-    val recent = remember(books) { books.sortedByDescending { it.addedAt }.take(24) }
+    val recent = remember(books) { books.distinctBy { it.id }.sortedByDescending { it.addedAt }.take(24) }
     val series = remember(books) {
         books.filter { it.primarySeries != null }.groupBy { it.primarySeries!!.name }
             .filter { it.value.size >= 2 }
@@ -107,9 +107,9 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
     }
     val discover = remember(books, progress) {
         val seed = LocalDate.now().toEpochDay()
-        books.filter { progress[it.id] == null }.shuffled(java.util.Random(seed)).take(16)
+        books.distinctBy { it.id }.filter { progress[it.id] == null }.shuffled(java.util.Random(seed)).take(16)
     }
-    val onDevice = remember(books, offline) { books.filter { it.id in offline } }
+    val onDevice = remember(books, offline) { books.distinctBy { it.id }.filter { it.id in offline } }
 
     PullToRefreshBox(
         isRefreshing = refreshing,
