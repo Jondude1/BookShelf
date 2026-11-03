@@ -90,6 +90,12 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
     LaunchedEffect(Unit) {
         Graph.library.refreshIfStale()
         Graph.progress.syncFromServer()
+        if (Graph.prefs.reader.value.keepReadingOffline) {
+            val byId = Graph.library.books.value.associateBy { it.id }
+            val readingNow = Graph.progress.all.value.values.filter { !it.finished && it.fraction > 0.001 }
+                .sortedByDescending { it.updatedAt }.take(5).mapNotNull { byId[it.itemId] }
+            Graph.files.keepOffline(readingNow)
+        }
     }
 
     val byId = remember(books) { books.associateBy { it.id } }

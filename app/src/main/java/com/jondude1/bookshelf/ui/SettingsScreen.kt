@@ -115,6 +115,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onOpenBook: (String) -> Unit) {
 
         Card("Reading") {
             SettingRow("Reading display & controls", "Theme, fonts, spacing, night light, page turns") { showReading = true }
+            ToggleSetting("Keep books I'm reading offline", "Your 5 most recent in-progress books, downloaded on Wi-Fi", reader.keepReadingOffline) { v -> Graph.prefs.updateReader { it.copy(keepReadingOffline = v) } }
             ToggleSetting("Download the next book in a series", "When you're near the end of a book", reader.autoDownloadNext) { v -> Graph.prefs.updateReader { it.copy(autoDownloadNext = v) } }
             ToggleSetting("Automatic night theme", "${reader.nightTheme.label} from ${reader.nightStartHour}:00 to ${reader.nightEndHour}:00", reader.autoNight) { v -> Graph.prefs.updateReader { it.copy(autoNight = v) } }
             if (reader.autoNight) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {

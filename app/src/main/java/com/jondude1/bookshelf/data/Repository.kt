@@ -256,6 +256,23 @@ class FileRepository(private val context: Context, private val client: AbsClient
         }
     }
 
+    /**
+     * Makes sure the books you're reading are on the device: a cached copy is promoted
+     * straight away, anything missing is downloaded — only on an unmetered network.
+     */
+    fun keepOffline(books: List<Book>) {
+        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val unmetered = !cm.isActiveNetworkMetered
+        for (b in books) {
+            if (b.id in _offline.value || _downloads.value[b.id] is DownloadState.Running) continue
+            val cached = File(cacheDir, name(b))
+            if (cached.exists() && cached.length() > 0) {
+                runCatching { cached.copyTo(File(offlineDir, name(b)), overwrite = true); cached.delete() }
+                _offline.value = scanOffline()
+            } else if (unmetered) download(b)
+        }
+    }
+
     /** Deletes every local copy of a book (cache and download) so the next open fetches it fresh. */
     fun evict(book: Book) {
         listOf(File(offlineDir, name(book)), File(cacheDir, name(book))).forEach { it.delete() }

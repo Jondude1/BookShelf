@@ -93,6 +93,8 @@ data class ReaderPrefs(
     val pdfCropMargins: Boolean = false,
     /** Books to finish this year */
     val yearlyGoal: Int = 24,
+    /** Keep books you're in the middle of downloaded (Wi-Fi only) */
+    val keepReadingOffline: Boolean = true,
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",
