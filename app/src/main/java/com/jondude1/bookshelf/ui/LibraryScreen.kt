@@ -64,10 +64,15 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
     val progress by Graph.progress.all.collectAsState()
     val offline by Graph.files.offline.collectAsState()
     var tab by rememberSaveable { mutableStateOf(0) }
-    var sort by rememberSaveable { mutableStateOf(SortBy.TITLE) }
-    var shelf by rememberSaveable { mutableStateOf(Shelf.ALL) }
-    var format by rememberSaveable { mutableStateOf<BookFormat?>(null) }
-    var grid by rememberSaveable { mutableStateOf(true) }
+    val view by Graph.prefs.reader.collectAsState()
+    val sort = SortBy.entries.firstOrNull { it.name == view.librarySort } ?: SortBy.TITLE
+    val shelf = Shelf.entries.firstOrNull { it.name == view.libraryShelf } ?: Shelf.ALL
+    val format = view.libraryFormat?.let { f -> BookFormat.entries.firstOrNull { it.name == f } }
+    val grid = view.libraryGrid
+    fun setSort(v: SortBy) = Graph.prefs.updateReader { it.copy(librarySort = v.name) }
+    fun setShelf(v: Shelf) = Graph.prefs.updateReader { it.copy(libraryShelf = v.name) }
+    fun setFormat(v: BookFormat?) = Graph.prefs.updateReader { it.copy(libraryFormat = v?.name) }
+    fun setGrid(v: Boolean) = Graph.prefs.updateReader { it.copy(libraryGrid = v) }
     var sortMenu by remember { mutableStateOf(false) }
 
     val filtered = remember(books, progress, offline, sort, shelf, format) {
@@ -100,12 +105,12 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
                 Text("${filtered.size} of ${books.size} books", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (tab == 0) {
-                IconButton(onClick = { grid = !grid }) { Icon(if (grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, "Layout") }
+                IconButton(onClick = { setGrid(!grid) }) { Icon(if (grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, "Layout") }
                 Box {
                     IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, "Sort") }
                     DropdownMenu(sortMenu, { sortMenu = false }) {
                         SortBy.entries.forEach { s ->
-                            DropdownMenuItem(text = { Text(s.label + if (s == sort) "  ✓" else "") }, onClick = { sort = s; sortMenu = false })
+                            DropdownMenuItem(text = { Text(s.label + if (s == sort) "  ✓" else "") }, onClick = { setSort(s); sortMenu = false })
                         }
                     }
                 }
@@ -117,10 +122,10 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
         when (tab) {
             0 -> {
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Shelf.entries.forEach { s -> FilterChip(shelf == s, { shelf = s }, label = { Text(s.label) }) }
+                    Shelf.entries.forEach { s -> FilterChip(shelf == s, { setShelf(s) }, label = { Text(s.label) }) }
                     if (formats.size > 1) {
                         Spacer(Modifier.width(8.dp))
-                        formats.forEach { f -> FilterChip(format == f, { format = if (format == f) null else f }, label = { Text(f.label) }) }
+                        formats.forEach { f -> FilterChip(format == f, { setFormat(if (format == f) null else f) }, label = { Text(f.label) }) }
                     }
                 }
                 if (grid) {

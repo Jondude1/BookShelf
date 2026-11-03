@@ -78,6 +78,11 @@ data class ReaderPrefs(
     val autoDownloadNext: Boolean = true,
     val dailyGoalMinutes: Int = 30,
     val showClock: Boolean = true,
+    // Library view, remembered between launches
+    val librarySort: String = "TITLE",
+    val libraryShelf: String = "ALL",
+    val libraryFormat: String? = null,
+    val libraryGrid: Boolean = true,
 ) {
     /** The theme to use right now, honoring the automatic night window. */
     fun effectiveTheme(hour: Int): ReaderTheme {
