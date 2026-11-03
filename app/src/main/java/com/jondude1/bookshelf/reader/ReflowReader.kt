@@ -400,7 +400,18 @@ class ReflowController(
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Quote", text))
     }
 
+    /** Pop-up definition for the selected word. */
+    var definition by mutableStateOf<Definition?>(null)
+
     private fun define(text: String) {
+        if (text.trim().split(Regex("\\s+")).size <= 2) {
+            val w = Dictionary.normalize(text)
+            definition = Definition.Loading(w)
+            scope.launch { val d = Dictionary.lookup(text); if (definition?.word == w) definition = d }
+        } else webDefine(text)
+    }
+
+    fun webDefine(text: String) {
         val word = text.split(Regex("\\s+")).take(4).joinToString(" ")
         val intent = Intent(Intent.ACTION_WEB_SEARCH).putExtra(android.app.SearchManager.QUERY, "define $word").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }.onFailure {
@@ -520,6 +531,31 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
         HighlightSheet(h, colors, controller, onDismiss = { controller.selectedHighlight = null })
     }
     controller.image?.let { bmp -> ImageViewer(bmp) { controller.image = null } }
+    controller.definition?.let { d ->
+        ModalBottomSheet(onDismissRequest = { controller.definition = null }, containerColor = colors.bg, contentColor = colors.fg) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+                Text(d.word, color = colors.fg, fontFamily = com.jondude1.bookshelf.ui.Literata, style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(8.dp))
+                Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
+                    when (d) {
+                        is Definition.Loading -> CircularProgressIndicator(Modifier.padding(16.dp).size(24.dp), color = colors.accent, strokeWidth = 2.dp)
+                        is Definition.Missing -> Text(d.reason, color = colors.muted, style = MaterialTheme.typography.bodyMedium)
+                        is Definition.Found -> d.senses.forEach { sense ->
+                            Text(sense.partOfSpeech.lowercase(), color = colors.accent, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+                            sense.definitions.forEachIndexed { i, def ->
+                                Text("${i + 1}. $def", color = colors.fg, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 6.dp))
+                            }
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                    if (d is Definition.Found) Text("Wiktionary", color = colors.muted, style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.align(Alignment.CenterVertically).weight(1f))
+                    TextButton(onClick = { controller.webDefine(d.word); controller.definition = null }) { Text("Search the web", color = colors.accent) }
+                }
+            }
+        }
+    }
     controller.footnote?.let { (text, url) ->
         ModalBottomSheet(onDismissRequest = { controller.footnote = null }, containerColor = colors.bg, contentColor = colors.fg) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
