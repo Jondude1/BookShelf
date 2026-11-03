@@ -70,7 +70,8 @@ import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String) -> Unit, onLibrary: () -> Unit, onStats: () -> Unit) {
+fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String) -> Unit, onLibrary: () -> Unit, onStats: () -> Unit, onCollection: (String) -> Unit = {}) {
+    val collections by Graph.library.collections.collectAsState()
     val books by Graph.library.books.collectAsState()
     val progress by Graph.progress.all.collectAsState()
     val offline by Graph.files.offline.collectAsState()
@@ -171,6 +172,19 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
                             val done = list.count { progress[it.id]?.finished == true }
                             Text("${list.size} books" + if (done > 0) " · $done read" else "", style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            if (collections.isNotEmpty()) item {
+                SectionHeader("Collections")
+                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    items(collections, key = { it.id }) { c ->
+                        val list = c.bookIds.mapNotNull { byId[it] }
+                        Column(Modifier.width(150.dp).clickable { onCollection(c.id) }) {
+                            SeriesStack(list)
+                            Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
+                            Text("${list.size} books", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

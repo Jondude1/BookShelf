@@ -53,6 +53,10 @@ class LibraryRepository(context: Context, private val client: AbsClient, private
     val books: StateFlow<List<Book>> = _books
     private val _state = MutableStateFlow<LoadState>(LoadState.Idle)
     val state: StateFlow<LoadState> = _state
+    private val collectionStore = JsonFile(File(context.filesDir, "collections.json"), ListSerializer(BookCollection.serializer())) { emptyList() }
+    private val _collections = MutableStateFlow(collectionStore.load())
+    /** Audiobookshelf collections that contain at least one ebook. */
+    val collections: StateFlow<List<BookCollection>> = _collections
     private val lock = Mutex()
     private var lastRefresh = 0L
 
@@ -76,6 +80,15 @@ class LibraryRepository(context: Context, private val client: AbsClient, private
             _books.value = merged
             withContext(Dispatchers.IO) { store.save(merged) }
             lastRefresh = System.currentTimeMillis()
+            // Collections are a nice-to-have; a failure here never fails the refresh
+            runCatching {
+                val known = merged.map { it.id }.toSet()
+                val cols = ids.flatMap { client.collections(it) }.map { c ->
+                    BookCollection(c.id, c.name, c.description?.takeIf { it.isNotBlank() }, c.books.map { it.id }.filter { it in known })
+                }.filter { it.bookIds.isNotEmpty() }.distinctBy { it.id }
+                _collections.value = cols
+                withContext(Dispatchers.IO) { collectionStore.save(cols) }
+            }
             _state.value = LoadState.Idle
         }.onFailure { _state.value = LoadState.Error(it.message ?: "Couldn't reach Athena") }
     }

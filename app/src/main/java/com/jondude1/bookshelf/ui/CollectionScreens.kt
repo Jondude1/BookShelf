@@ -173,3 +173,13 @@ private fun ResultLine(title: String, detail: String, onClick: () -> Unit) {
     }
 }
 
+
+@Composable
+fun BookCollectionScreen(id: String, onBack: () -> Unit, onOpen: (Book) -> Unit) {
+    val books by Graph.library.books.collectAsState()
+    val cols by Graph.library.collections.collectAsState()
+    val col = cols.firstOrNull { it.id == id }
+    val byId = remember(books) { books.associateBy { it.id } }
+    val list = col?.bookIds?.mapNotNull { byId[it] }.orEmpty()
+    CollectionScreen(col?.name ?: "Collection", col?.description ?: "${list.size} books", list, onBack, onOpen, numbered = false)
+}

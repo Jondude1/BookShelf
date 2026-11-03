@@ -59,7 +59,8 @@ enum class Shelf(val label: String) { ALL("All"), READING("Reading"), UNREAD("Un
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit) {
+fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit, onCollection: (String) -> Unit = {}) {
+    val collections by Graph.library.collections.collectAsState()
     val books by Graph.library.books.collectAsState()
     val progress by Graph.progress.all.collectAsState()
     val offline by Graph.files.offline.collectAsState()
@@ -117,7 +118,7 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
             }
         }
         SecondaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background, modifier = Modifier.padding(top = 4.dp)) {
-            listOf("Books", "Series", "Authors").forEachIndexed { i, t -> Tab(tab == i, { tab = i }, text = { Text(t) }) }
+            (listOf("Books", "Series", "Authors") + if (collections.isNotEmpty()) listOf("Collections") else emptyList()).forEachIndexed { i, t -> Tab(tab == i, { tab = i }, text = { Text(t) }) }
         }
         when (tab) {
             0 -> {
@@ -160,6 +161,22 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
                         Column(Modifier.clickable { onSeries(name) }) {
                             SeriesStack(list)
                             Text(name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
+                            Text("${list.size} book${if (list.size == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            3 -> {
+                val byId = remember(books) { books.associateBy { it.id } }
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(150.dp),
+                    contentPadding = PaddingValues(20.dp), horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    items(collections, key = { it.id }) { c ->
+                        val list = c.bookIds.mapNotNull { byId[it] }
+                        Column(Modifier.clickable { onCollection(c.id) }) {
+                            SeriesStack(list)
+                            Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
                             Text("${list.size} book${if (list.size == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }

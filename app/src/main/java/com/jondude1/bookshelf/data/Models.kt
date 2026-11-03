@@ -252,3 +252,13 @@ data class Annotations(
     val highlights: List<Highlight> = emptyList(),
     val bookmarks: List<Bookmark> = emptyList(),
 )
+
+@Serializable
+data class AbsCollection(val id: String, val name: String = "", val description: String? = null, val books: List<AbsItem> = emptyList())
+
+@Serializable
+data class AbsCollectionsPage(val results: List<AbsCollection> = emptyList())
+
+/** An Audiobookshelf collection, reduced to the ebooks in it. */
+@Serializable
+data class BookCollection(val id: String, val name: String, val description: String? = null, val bookIds: List<String> = emptyList())

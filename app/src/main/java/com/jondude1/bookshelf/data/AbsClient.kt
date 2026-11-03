@@ -202,6 +202,9 @@ class AbsClient(private val prefs: Prefs) {
         return out.values.filter { it.media.ebookFormat != null || it.media.ebookFile != null }
     }
 
+    suspend fun collections(libraryId: String): List<AbsCollection> =
+        getJson("/api/libraries/$libraryId/collections", AbsCollectionsPage.serializer(), mapOf("limit" to "0")).results
+
     suspend fun item(id: String): AbsItem = getJson("/api/items/$id", AbsItem.serializer(), mapOf("expanded" to "1"))
 
     fun coverUrl(id: String, width: Int = 600): String? =
