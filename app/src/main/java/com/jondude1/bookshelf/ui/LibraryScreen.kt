@@ -1,6 +1,12 @@
 package com.jondude1.bookshelf.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -130,22 +136,40 @@ private fun LibraryContent(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, o
                         formats.forEach { f -> FilterChip(format == f, { setFormat(if (format == f) null else f) }, label = { Text(f.label) }) }
                     }
                 }
-                if (grid) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(112.dp),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp, top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(22.dp),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        items(filtered, key = { it.id }) { b -> BookTile(b, progress[b.id], b.id in offline) { onOpen(b) } }
-                        if (filtered.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text("Nothing here yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(24.dp))
+                val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+                val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+                val scope = androidx.compose.runtime.rememberCoroutineScope()
+                // First index for each starting letter, when sorted by title
+                val letters = remember(filtered, sort) {
+                    if (sort != SortBy.TITLE || filtered.size < 40) emptyList()
+                    else filtered.mapIndexedNotNull { i, b ->
+                        val c = b.sortTitle.firstOrNull()?.uppercaseChar() ?: return@mapIndexedNotNull null
+                        (if (c.isLetter()) c else '#') to i
+                    }.distinctBy { it.first }
+                }
+                Box(Modifier.fillMaxSize()) {
+                    if (grid) {
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Adaptive(112.dp),
+                            contentPadding = PaddingValues(start = 20.dp, end = if (letters.isEmpty()) 20.dp else 34.dp, bottom = 32.dp, top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(22.dp),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(filtered, key = { it.id }) { b -> BookTile(b, progress[b.id], b.id in offline) { onOpen(b) } }
+                            if (filtered.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+                                Text("Nothing here yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(24.dp))
+                            }
+                        }
+                    } else {
+                        LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 32.dp, end = if (letters.isEmpty()) 0.dp else 14.dp)) {
+                            items(filtered, key = { it.id }) { b -> BookListRow(b, progress[b.id]?.fraction, progress[b.id]?.finished == true) { onOpen(b) } }
                         }
                     }
-                } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
-                        items(filtered, key = { it.id }) { b -> BookListRow(b, progress[b.id]?.fraction, progress[b.id]?.finished == true) { onOpen(b) } }
+                    if (letters.isNotEmpty()) LetterRail(letters.map { it.first }, Modifier.align(Alignment.CenterEnd)) { idx ->
+                        val target = letters[idx].second
+                        scope.launch { if (grid) gridState.scrollToItem(target) else listState.scrollToItem(target) }
                     }
                 }
             }
@@ -246,6 +270,43 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Vertical A–Z strip: tap or drag to jump through a title-sorted list. */
+@Composable
+private fun LetterRail(letters: List<Char>, modifier: Modifier, onPick: (Int) -> Unit) {
+    var active by remember { mutableStateOf<Int?>(null) }
+    var height by remember { mutableStateOf(1) }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    fun pick(y: Float) {
+        val i = ((y / height) * letters.size).toInt().coerceIn(0, letters.lastIndex)
+        if (i != active) { active = i; onPick(i); haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
+    }
+    Box(modifier.padding(vertical = 12.dp)) {
+        Column(
+            Modifier.width(28.dp)
+                .onSizeChanged { height = it.height.coerceAtLeast(1) }
+                .pointerInput(letters) {
+                    detectTapGestures(onPress = { o -> pick(o.y); tryAwaitRelease(); active = null })
+                }
+                .pointerInput(letters) {
+                    detectVerticalDragGestures(onDragEnd = { active = null }, onDragCancel = { active = null }) { change, _ -> pick(change.position.y) }
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            letters.forEachIndexed { i, c ->
+                Text(c.toString(), style = MaterialTheme.typography.labelSmall,
+                    color = if (active == i) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        active?.let { i ->
+            Box(Modifier.align(Alignment.CenterStart).offset(x = (-64).dp).size(52.dp).clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Text(letters[i].toString(), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
     }
