@@ -169,7 +169,11 @@ class ReflowController(
 
     private fun fractionSpec(f: Double) = buildJsonObject { put("type", "fraction"); put("value", f) }.toString()
 
-    fun load(index: Int, spec: String) {
+    /** +1 when moving forward a chapter, -1 backward, 0 for jumps (fade only). */
+    private var slideDir = 0
+
+    fun load(index: Int, spec: String, direction: Int = 0) {
+        slideDir = direction
         if (index !in book.chapters.indices) return
         ready = false
         chapter = index
@@ -205,7 +209,9 @@ class ReflowController(
     // ---------- bridge ----------
     override fun onReady(page: Int, count: Int) {
         this.page = page; pageCount = count; ready = true
-        web.animate().alpha(1f).setDuration(160).start()
+        web.translationX = slideDir * web.width * 0.18f
+        web.animate().alpha(1f).translationX(0f).setDuration(if (slideDir == 0) 160 else 240)
+            .setInterpolator(android.view.animation.DecelerateInterpolator(1.6f)).start()
         saveProgress(turned = false)
         if (ttsContinue) { ttsContinue = false; startTts(fromStart = true) }
     }
@@ -228,8 +234,8 @@ class ReflowController(
 
     override fun onEdge(direction: Int) {
         if (direction > 0) {
-            if (chapter < book.chapters.lastIndex) load(chapter + 1, """{"type":"first"}""") else session.reachedEnd()
-        } else if (chapter > 0) load(chapter - 1, """{"type":"last"}""")
+            if (chapter < book.chapters.lastIndex) load(chapter + 1, """{"type":"first"}""", 1) else session.reachedEnd()
+        } else if (chapter > 0) load(chapter - 1, """{"type":"last"}""", -1)
     }
 
     override fun onTap() { session.toggleChrome() }
@@ -371,7 +377,7 @@ class ReflowController(
         tts.onBlock = { i -> web.evaluateJavascript("BS.ttsMark($i)", null) }
         tts.onFinished = {
             web.evaluateJavascript("BS.ttsClear()", null)
-            if (chapter < book.chapters.lastIndex) { ttsContinue = true; load(chapter + 1, """{"type":"first"}""") }
+            if (chapter < book.chapters.lastIndex) { ttsContinue = true; load(chapter + 1, """{"type":"first"}""", 1) }
         }
     }
 
