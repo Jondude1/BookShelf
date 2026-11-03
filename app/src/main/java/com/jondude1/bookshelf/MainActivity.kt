@@ -177,6 +177,7 @@ private fun App() {
             Column(Modifier.weight(1f)) {
                 if (showBars) UpdateBanner()
                 Box(Modifier.weight(1f)) {
+                    androidx.compose.runtime.CompositionLocalProvider(com.jondude1.bookshelf.ui.LocalReadBook provides { id: String -> nav.navigate("read/$id") }) {
                     NavHost(nav, startDestination = start) {
                         composable("login") {
                             LoginScreen(onDone = { nav.navigate("home") { popUpTo("login") { inclusive = true } } })
@@ -205,6 +206,7 @@ private fun App() {
                             ReaderScreen(e.arguments!!.getString("id")!!, onBack = { nav.popBackStack() },
                                 onOpenBook = { id -> nav.navigate("read/$id") { popUpTo("read/{id}") { inclusive = true } } })
                         }
+                    }
                     }
                 }
                 if (showBars && !wide) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {

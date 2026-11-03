@@ -25,6 +25,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.LibraryAdd
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -111,7 +118,7 @@ private fun GeneratedCover(book: Book) {
 /** Grid / shelf tile: cover with progress + offline marks, then title and author. */
 @Composable
 fun BookTile(book: Book, progress: ReadingProgress?, offline: Boolean, modifier: Modifier = Modifier, showText: Boolean = true, onClick: () -> Unit) {
-    Column(modifier.clickable(onClick = onClick)) {
+    Column(modifier.bookActions(book, onClick)) {
         Box {
             BookCover(book, Modifier.fillMaxWidth())
             if (progress?.finished == true) Badge(Icons.Default.Check, Modifier.align(Alignment.TopEnd).padding(6.dp))
@@ -191,3 +198,45 @@ fun formatBytes(b: Long): String = when {
 }
 
 @Suppress("unused") private val boldWeight = FontWeight.Bold
+
+/** App-wide "open this book in the reader" action, provided by the navigation host. */
+val LocalReadBook = androidx.compose.runtime.staticCompositionLocalOf<(String) -> Unit> { {} }
+
+/** Tap opens details; long-press shows quick actions (read, download, mark finished). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun Modifier.bookActions(book: Book, onClick: () -> Unit): Modifier {
+    var menu by remember { mutableStateOf(false) }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val read = LocalReadBook.current
+    val offline by Graph.files.offline.collectAsState()
+    val progress by Graph.progress.all.collectAsState()
+    val finished = progress[book.id]?.finished == true
+    if (menu) {
+        androidx.compose.material3.DropdownMenu(expanded = true, onDismissRequest = { menu = false }) {
+            androidx.compose.material3.DropdownMenuItem(text = { Text(if ((progress[book.id]?.fraction ?: 0.0) > 0.001 && !finished) "Continue reading" else "Read now") },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.MenuBook, null) }, onClick = { menu = false; read(book.id) })
+            if (book.id in offline) androidx.compose.material3.DropdownMenuItem(text = { Text("Remove download") },
+                leadingIcon = { Icon(Icons.Default.DeleteOutline, null) }, onClick = { menu = false; Graph.files.remove(book.id) })
+            else androidx.compose.material3.DropdownMenuItem(text = { Text("Download") },
+                leadingIcon = { Icon(Icons.Default.Download, null) }, onClick = { menu = false; Graph.files.download(book) })
+            androidx.compose.material3.DropdownMenuItem(text = { Text(if (finished) "Mark as unread" else "Mark as finished") },
+                leadingIcon = { Icon(if (finished) Icons.Default.Replay else Icons.Default.Check, null) }, onClick = {
+                    menu = false
+                    Graph.progress.markFinished(book.id, !finished)
+                    if (!finished) Graph.stats.markFinished(book.id)
+                })
+            book.primarySeries?.let { s ->
+                androidx.compose.material3.DropdownMenuItem(text = { Text("Download rest of ${s.name}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    leadingIcon = { Icon(Icons.Default.LibraryAdd, null) }, onClick = {
+                        menu = false
+                        Graph.library.seriesBooks(s.name).filter { it.id !in offline && progress[it.id]?.finished != true }.forEach { Graph.files.download(it) }
+                    })
+            }
+        }
+    }
+    return this.combinedClickable(onClick = onClick, onLongClick = {
+        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+        menu = true
+    })
+}

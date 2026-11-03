@@ -190,7 +190,7 @@ fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: 
 
 @Composable
 fun BookListRow(b: Book, fraction: Double?, finished: Boolean, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().bookActions(b, onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         BookCover(b, Modifier.width(52.dp), corner = 4.dp, elevation = 3.dp, width = 200)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
