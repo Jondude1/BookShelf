@@ -20,6 +20,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -246,7 +251,18 @@ class ReflowController(
 
     override fun onHighlightTap(id: String) { selectedHighlight = annotations.highlights.firstOrNull { it.id == id } }
 
-    override fun onImage(url: String) { session.toggleChrome() }
+    /** Illustration opened in the full-screen viewer. */
+    var image by mutableStateOf<android.graphics.Bitmap?>(null)
+
+    override fun onImage(url: String) {
+        val path = Uri.parse(url).path?.removePrefix("/b/") ?: return
+        scope.launch {
+            val bmp = withContext(Dispatchers.IO) {
+                runCatching { book.resource(path)?.bytes?.let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) } }.getOrNull()
+            }
+            if (bmp != null) image = bmp else session.toggleChrome()
+        }
+    }
 
     override fun onSelection(action: SelectionAction, json: String) {
         val sel = runCatching { JsonFmt.decodeFromString(SelectionJson.serializer(), json) }.getOrNull() ?: return
@@ -495,6 +511,7 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
     controller.selectedHighlight?.let { h ->
         HighlightSheet(h, colors, controller, onDismiss = { controller.selectedHighlight = null })
     }
+    controller.image?.let { bmp -> ImageViewer(bmp) { controller.image = null } }
     controller.footnote?.let { (text, url) ->
         ModalBottomSheet(onDismissRequest = { controller.footnote = null }, containerColor = colors.bg, contentColor = colors.fg) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
@@ -637,3 +654,33 @@ fun NoteDialog(colors: ReaderColors, initial: String, quote: String, onSave: (St
     )
 }
 
+
+/** Full-screen illustration with pinch, pan and double-tap zoom. */
+@Composable
+private fun ImageViewer(bmp: android.graphics.Bitmap, onClose: () -> Unit) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val state = androidx.compose.foundation.gestures.rememberTransformableState { z, pan, _ ->
+        scale = (scale * z).coerceIn(1f, 6f)
+        offset = if (scale <= 1.01f) androidx.compose.ui.geometry.Offset.Zero else offset + pan
+    }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onClose,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color.Black)) {
+            androidx.compose.foundation.Image(
+                bitmap = bmp.asImageBitmap(), contentDescription = "Illustration",
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(onDoubleTap = { scale = if (scale > 1.05f) 1f else 2.5f; if (scale == 1f) offset = androidx.compose.ui.geometry.Offset.Zero })
+                    }
+                    .transformable(state)
+                    .graphicsLayer { scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y },
+            )
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                .clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))) {
+                Icon(Icons.Default.Close, "Close", tint = Color.White)
+            }
+        }
+    }
+}

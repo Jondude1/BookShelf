@@ -370,8 +370,10 @@
     var m = e.target.closest ? e.target.closest('mark.bs-hl') : null;
     if (m) { e.preventDefault(); A.onHighlightTap(m.getAttribute('data-id')); return; }
     if (hasSel()) return;
-    var img = e.target.closest ? e.target.closest('img') : null;
+    var img = e.target.closest ? e.target.closest('img,image') : null;
     var x = e.clientX;
+    // Large illustrations open in the viewer wherever they're tapped
+    if (img && img.getBoundingClientRect().width > W * 0.4) { A.onImage(img.src || (img.href && img.href.baseVal) || ''); return; }
     if (cfg && cfg.tapZones && x < W * 0.28) { BS.prev(); return; }
     if (cfg && cfg.tapZones && x > W * 0.72) { BS.next(); return; }
     if (img && img.naturalWidth > 200) { A.onImage(img.src); return; }
