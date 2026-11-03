@@ -45,6 +45,33 @@ Only library items that have an ebook file are shown. If you have more than one 
 9. **Reading stats** — daily goal ring, streaks, two-week chart, pace, and "time left in chapter / book" from your own reading speed.
 10. **Night light** — warmth filter and in-app brightness on top of the dark themes.
 
+## More features
+
+**Reading**
+- Footnotes open in a pop-up; tap an illustration to view it full-screen with zoom
+- "Back to where you were" chip after any jump; tap the percentage to go to any point
+- Page-turn style: slide, fade or instant; directional slide between chapters
+- Pinch the page to change text size; slide on the left edge to change brightness
+- Letter spacing and paragraph style (book, indented, spaced)
+- Define a word in-app (Wiktionary) — no need to leave the book
+- Read aloud with sleep timer (15/30/60 min or end of chapter) and voice choice
+- PDF margin cropping for phone-sized screens
+- Contents show chapters read, where you are, and where each chapter starts
+
+**Library**
+- Collections from Audiobookshelf; Finished shelf; remembered sort/filter/layout
+- Long-press any book: read, download, mark finished, download rest of series
+- A–Z fast scroll; search covers descriptions and keeps recent searches
+- Two-pane library + details on a tablet in landscape
+- Notes page with every highlight across all books (searchable, exportable)
+
+**Behind the scenes**
+- Books you're reading stay offline (downloaded on Wi-Fi)
+- Sync indicator for progress waiting to reach Athena
+- Per-book reading time, yearly goal, launcher "Continue reading" shortcut
+- Backup / restore of notes, bookmarks, stats and positions
+- Crash reports shown on next launch with a Share button
+
 ## Building
 
 Every push to `main` builds a signed release APK in GitHub Actions and publishes it as release `v1.0.<run>`. The signing key is in `keystore/` and must never change, or Android will refuse the update.
