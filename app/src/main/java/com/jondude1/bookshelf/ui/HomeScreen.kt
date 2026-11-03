@@ -113,6 +113,9 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
         val seed = LocalDate.now().toEpochDay()
         books.distinctBy { it.id }.filter { progress[it.id] == null }.shuffled(java.util.Random(seed)).take(16)
     }
+    val finished = remember(books, progress) {
+        books.distinctBy { it.id }.filter { progress[it.id]?.finished == true }.sortedByDescending { progress[it.id]?.updatedAt ?: 0 }.take(20)
+    }
     val onDevice = remember(books, offline) { books.distinctBy { it.id }.filter { it.id in offline } }
 
     PullToRefreshBox(
@@ -197,6 +200,11 @@ fun HomeScreen(onOpen: (Book) -> Unit, onRead: (Book) -> Unit, onSeries: (String
             if (onDevice.isNotEmpty()) item {
                 SectionHeader("On this device", "Readable without Athena")
                 BookShelfRow(onDevice, progress, offline, onOpen = onOpen)
+            }
+            if (finished.isNotEmpty()) item {
+                val thisYear = stats.finished.values.count { it.startsWith(LocalDate.now().year.toString()) }
+                SectionHeader("Finished", if (thisYear > 0) "$thisYear finished in ${LocalDate.now().year}" else null)
+                BookShelfRow(finished, progress, offline, onOpen = onOpen)
             }
             if (discover.isNotEmpty()) item {
                 SectionHeader("From your shelves", "Unread picks, fresh each day")
