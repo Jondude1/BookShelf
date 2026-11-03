@@ -191,6 +191,7 @@ class ReflowController(
             put("margin", prefs.margin.coerceIn(0, 2)); put("justify", prefs.justify); put("hyphenate", prefs.hyphenate)
             put("publisher", prefs.publisherStyles); put("spread", spread); put("tapZones", prefs.tapZones)
             put("top", topDp); put("bottom", bottomDp); put("dropStyles", false)
+            put("turn", when (prefs.pageTurn) { "FADE" -> "fade"; "NONE" -> "none"; else -> "slide" })
         }.toString()
         web.setBackgroundColor(android.graphics.Color.argb(255, (colors.bg.red * 255).toInt(), (colors.bg.green * 255).toInt(), (colors.bg.blue * 255).toInt()))
         if (ready) web.evaluateJavascript("BS.configure($configJson)", null)

@@ -261,6 +261,14 @@ fun ReaderSettingsPanel(prefs: ReaderPrefs, colors: ReaderColors, reflow: Boolea
         if (prefs.brightness >= 0) LabeledSlider("Brightness", "${(prefs.brightness * 100).toInt()}%", prefs.brightness, 0f..1f, colors) { v -> onChange { it.copy(brightness = v) } }
         LabeledSlider("Warmth", if (prefs.warmth <= 0.01f) "Off" else "${(prefs.warmth * 100).toInt()}%", prefs.warmth, 0f..1f, colors) { v -> onChange { it.copy(warmth = v) } }
 
+        SectionLabel("Page turn", colors)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("SLIDE" to "Slide", "FADE" to "Fade", "NONE" to "Instant").forEach { (k, l) ->
+                FilterChip(selected = prefs.pageTurn == k, onClick = { onChange { it.copy(pageTurn = k) } }, label = { Text(l) })
+            }
+        }
+        if (!reflow) Text("Applies to EPUB, MOBI and AZW3 books.", color = colors.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+
         SectionLabel("Controls", colors)
         ToggleRow("Tap page edges to turn", null, prefs.tapZones, colors) { v -> onChange { it.copy(tapZones = v) } }
         ToggleRow("Volume buttons turn pages", null, prefs.volumeKeys, colors) { v -> onChange { it.copy(volumeKeys = v) } }

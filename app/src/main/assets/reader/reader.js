@@ -83,14 +83,25 @@
   }
 
   function scrollToX(x) { window.scrollTo(x, 0); }
-  function stopAnim() { if (anim) { cancelAnimationFrame(anim); anim = null; } }
+  function stopAnim() {
+    if (anim) { cancelAnimationFrame(anim); clearTimeout(anim); anim = null; }
+    if (document.body && document.body.style.opacity === '0') { document.body.style.opacity = '1'; scrollToX(page * W); }
+  }
 
   function animateTo(p, fast) {
     stopAnim();
     p = Math.max(0, Math.min(pageCount - 1, p));
     var from = window.scrollX, to = p * W, t0 = null, dur = fast ? 160 : 280;
     page = p;
-    if (Math.abs(to - from) < 1 || cfg.noAnim) { scrollToX(to); report(); return; }
+    if (Math.abs(to - from) < 1 || cfg.noAnim || cfg.turn === 'none') { scrollToX(to); report(); return; }
+    if (cfg.turn === 'fade') {
+      var b = document.body;
+      b.style.transition = 'opacity 110ms ease-out'; b.style.opacity = '0';
+      anim = setTimeout(function () {
+        scrollToX(to); b.style.transition = 'opacity 150ms ease-in'; b.style.opacity = '1'; anim = null; report();
+      }, 110);
+      return;
+    }
     function step(ts) {
       if (t0 === null) t0 = ts;
       var k = Math.min(1, (ts - t0) / dur);
@@ -342,6 +353,7 @@
     }
     if (dragging) {
       e.preventDefault();
+      if (cfg && cfg.turn && cfg.turn !== 'slide') return; // fade / instant: no finger-follow
       var x = baseX - dx, max = (pageCount - 1) * W;
       if (x < 0) x = -Math.pow(-x, 0.75) * 0; // edges don't overscroll
       if (x > max) x = max;

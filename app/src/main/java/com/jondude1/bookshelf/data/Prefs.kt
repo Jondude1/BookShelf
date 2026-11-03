@@ -78,6 +78,8 @@ data class ReaderPrefs(
     val autoDownloadNext: Boolean = true,
     val dailyGoalMinutes: Int = 30,
     val showClock: Boolean = true,
+    /** SLIDE, FADE or NONE */
+    val pageTurn: String = "SLIDE",
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",
