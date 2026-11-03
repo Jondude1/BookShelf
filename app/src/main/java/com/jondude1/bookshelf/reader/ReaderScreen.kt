@@ -135,7 +135,9 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit, onOpenBook: (String) -> Uni
     var opened by remember(bookId) { mutableStateOf<Opened>(Opened.Loading(0f)) }
 
     LaunchedEffect(bookId) { Graph.scope.launch { com.jondude1.bookshelf.Shortcuts.publishContinue(context.applicationContext, meta) } }
-    LaunchedEffect(bookId) {
+    var attempt by remember(bookId) { mutableIntStateOf(0) }
+    LaunchedEffect(bookId, attempt) {
+        opened = Opened.Loading(0f)
         opened = runCatching {
             val progress = Graph.progress.resolveForOpen(bookId)
             val file = Graph.files.open(meta) { p -> opened = Opened.Loading(p) }
@@ -198,7 +200,9 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit, onOpenBook: (String) -> Uni
     Box(Modifier.fillMaxSize().background(colors.bg)) {
         when (val o = opened) {
             is Opened.Loading -> LoadingCover(meta, o.progress, colors)
-            is Opened.Failed -> FailedView(meta, o.message, colors, onBack)
+            is Opened.Failed -> FailedView(meta, o.message, colors, onBack,
+                onRetry = { attempt++ },
+                onRedownload = { Graph.files.evict(meta); attempt++ })
             is Opened.Reflow -> ReflowReader(o.book, meta, o.progress, session, colors, prefs)
             is Opened.Pages -> PageReader(o.source, meta, o.progress, session, colors, prefs)
         }
@@ -232,13 +236,17 @@ private fun LoadingCover(meta: Book, progress: Float, colors: ReaderColors) {
 }
 
 @Composable
-private fun FailedView(meta: Book, message: String, colors: ReaderColors, onBack: () -> Unit) {
+private fun FailedView(meta: Book, message: String, colors: ReaderColors, onBack: () -> Unit, onRetry: () -> Unit, onRedownload: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(meta.title, color = colors.fg, fontFamily = Literata, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
         Text(message, color = colors.muted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
-        OutlinedButton(onClick = onBack) { Text("Back to library", color = colors.fg) }
+        Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.bg)) { Text("Try again") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onRedownload) { Text("Download a fresh copy", color = colors.fg) }
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.material3.TextButton(onClick = onBack) { Text("Back to library", color = colors.muted) }
     }
 }
 

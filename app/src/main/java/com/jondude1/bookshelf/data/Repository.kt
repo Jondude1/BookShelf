@@ -256,6 +256,13 @@ class FileRepository(private val context: Context, private val client: AbsClient
         }
     }
 
+    /** Deletes every local copy of a book (cache and download) so the next open fetches it fresh. */
+    fun evict(book: Book) {
+        listOf(File(offlineDir, name(book)), File(cacheDir, name(book))).forEach { it.delete() }
+        File(context.cacheDir, "cbr-" + book.id).deleteRecursively()
+        _offline.value = scanOffline()
+    }
+
     fun remove(id: String) {
         offlineDir.listFiles().orEmpty().filter { it.nameWithoutExtension == id }.forEach { it.delete() }
         _downloads.update { it - id }
