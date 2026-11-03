@@ -70,7 +70,7 @@ import com.jondude1.bookshelf.data.DownloadState
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookDetailScreen(bookId: String, onBack: () -> Unit, onRead: (Book) -> Unit, onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit) {
+fun BookDetailScreen(bookId: String, onBack: () -> Unit, onRead: (Book) -> Unit, onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit, compact: Boolean = false) {
     val context = LocalContext.current
     val books by Graph.library.books.collectAsState()
     val book = books.firstOrNull { it.id == bookId } ?: return
@@ -80,7 +80,7 @@ fun BookDetailScreen(bookId: String, onBack: () -> Unit, onRead: (Book) -> Unit,
     val annotations by Graph.annotations.flow(bookId).collectAsState()
     var menu by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
-    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val wide = LocalConfiguration.current.screenWidthDp >= 600 && !compact
 
     LaunchedEffect(bookId) { Graph.library.detail(bookId) }
 

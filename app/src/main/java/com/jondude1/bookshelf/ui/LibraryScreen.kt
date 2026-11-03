@@ -1,6 +1,7 @@
 package com.jondude1.bookshelf.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,7 +60,7 @@ enum class Shelf(val label: String) { ALL("All"), READING("Reading"), UNREAD("Un
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit, onCollection: (String) -> Unit = {}) {
+private fun LibraryContent(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit, onCollection: (String) -> Unit, selectedId: String?) {
     val collections by Graph.library.collections.collectAsState()
     val books by Graph.library.books.collectAsState()
     val progress by Graph.progress.all.collectAsState()
@@ -219,6 +220,33 @@ fun BookListRow(b: Book, fraction: Double?, finished: Boolean, onClick: () -> Un
                 fraction != null && fraction > 0.001 -> " · ${(fraction * 100).toInt()}%"
                 else -> ""
             }, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 2.dp))
+        }
+    }
+}
+
+/** On wide screens (tablet landscape) the library and a book's details sit side by side. */
+@Composable
+fun LibraryScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (String) -> Unit, onCollection: (String) -> Unit = {}) {
+    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
+    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    if (!wide) { LibraryContent(onOpen, onSeries, onAuthor, onCollection, null); return }
+    val read = LocalReadBook.current
+    Row(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f)) { LibraryContent({ selected = it.id }, onSeries, onAuthor, onCollection, selected) }
+        androidx.compose.animation.AnimatedVisibility(selected != null,
+            enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut()) {
+            Row {
+                androidx.compose.material3.VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Box(Modifier.width(460.dp).fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+                    selected?.let { id ->
+                        androidx.compose.runtime.key(id) {
+                            BookDetailScreen(id, onBack = { selected = null }, onRead = { read(it.id) }, onOpen = { selected = it.id },
+                                onSeries = onSeries, onAuthor = onAuthor, compact = true)
+                        }
+                    }
+                }
+            }
         }
     }
 }
