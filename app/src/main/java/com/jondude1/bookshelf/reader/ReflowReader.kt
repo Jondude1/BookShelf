@@ -555,7 +555,12 @@ private fun ContentsSheet(controller: ReflowController, annotations: com.jondude
                 val state = rememberLazyListState(initialFirstVisibleItemIndex = (currentIdx - 3).coerceAtLeast(0))
                 LazyColumn(state = state) {
                     itemsIndexed(toc) { i, e ->
-                        ListRow(e.title, null, colors, indent = e.depth.coerceAtMost(3), current = i == currentIdx, onClick = { controller.goToToc(e); close() })
+                        val startPct = (controller.book.bookFraction(e.chapterIndex, 0.0) * 100).toInt()
+                        val detail = if (i == currentIdx) "You're here · ${(controller.inChapter * 100).toInt()}% through" else null
+                        ListRow(e.title, detail, colors, indent = e.depth.coerceAtMost(3), current = i == currentIdx, dim = i < currentIdx,
+                            onClick = { controller.goToToc(e); close() }) {
+                            if (i != currentIdx) Text("$startPct%", color = colors.muted, style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }

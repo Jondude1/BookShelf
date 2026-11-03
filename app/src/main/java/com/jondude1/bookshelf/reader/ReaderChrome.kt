@@ -300,13 +300,13 @@ private fun LabeledSlider(title: String, value: String, v: Float, range: ClosedF
 
 /** Selectable row used by the contents / highlights / bookmarks lists. */
 @Composable
-fun ListRow(title: String, detail: String?, colors: ReaderColors, indent: Int = 0, current: Boolean = false, onClick: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
+fun ListRow(title: String, detail: String?, colors: ReaderColors, indent: Int = 0, current: Boolean = false, dim: Boolean = false, onClick: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = (20 + indent * 16).dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = if (current) colors.accent else colors.fg, style = MaterialTheme.typography.bodyLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text(title, color = if (current) colors.accent else if (dim) colors.fg.copy(alpha = 0.5f) else colors.fg, style = MaterialTheme.typography.bodyLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
             if (!detail.isNullOrBlank()) Text(detail, color = colors.muted, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         if (current) Icon(Icons.Default.Check, null, tint = colors.accent, modifier = Modifier.size(18.dp))
