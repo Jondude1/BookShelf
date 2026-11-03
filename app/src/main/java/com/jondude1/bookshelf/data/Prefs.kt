@@ -84,6 +84,7 @@ data class ReaderPrefs(
     val letterSpacing: Float = 0f,
     /** BOOK, INDENT or SPACED */
     val paragraphs: String = "BOOK",
+    val recentSearches: List<String> = emptyList(),
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",

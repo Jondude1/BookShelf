@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -111,7 +113,8 @@ fun SearchScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (
     val terms = q.trim().lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
     val results = remember(books, q) {
         if (terms.isEmpty()) emptyList() else books.mapNotNull { b ->
-            val hay = listOf(b.title, b.subtitle ?: "", b.author, b.series.joinToString(" ") { it.name }, b.genres.joinToString(" "), b.tags.joinToString(" "))
+            val hay = listOf(b.title, b.subtitle ?: "", b.author, b.series.joinToString(" ") { it.name }, b.genres.joinToString(" "), b.tags.joinToString(" "),
+                b.description?.replace(Regex("<[^>]+>"), " ") ?: "")
                 .joinToString(" | ").lowercase()
             if (terms.all { hay.contains(it) }) {
                 val score = (if (b.title.lowercase().startsWith(terms.first())) 4 else 0) + (if (b.title.lowercase().contains(q.trim().lowercase())) 3 else 0) +
@@ -135,28 +138,52 @@ fun SearchScreen(onOpen: (Book) -> Unit, onSeries: (String) -> Unit, onAuthor: (
             trailingIcon = { if (q.isNotEmpty()) IconButton(onClick = { q = "" }) { Icon(Icons.Default.Close, "Clear") } },
             placeholder = { Text("Titles, authors, series, genres") },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); remember(q) }),
             shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 16.dp, vertical = 12.dp).focusRequester(focus),
         )
+        val recents = Graph.prefs.reader.collectAsState().value.recentSearches
         LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
+            if (terms.isEmpty() && recents.isNotEmpty()) {
+                item {
+                    Row(Modifier.fillMaxWidth().padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Label("Recent")
+                        Spacer(Modifier.weight(1f))
+                        androidx.compose.material3.TextButton(onClick = { Graph.prefs.updateReader { it.copy(recentSearches = emptyList()) } }) { Text("Clear") }
+                    }
+                }
+                items(recents, key = { "r-$it" }) { r ->
+                    Row(Modifier.fillMaxWidth().clickable { q = r }.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        androidx.compose.foundation.layout.Spacer(Modifier.padding(start = 14.dp))
+                        Text(r, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
             if (seriesHits.isNotEmpty()) {
                 item { Label("Series") }
-                items(seriesHits) { s -> ResultLine(s, "${Graph.library.seriesBooks(s).size} books") { onSeries(s) } }
+                items(seriesHits) { s -> ResultLine(s, "${Graph.library.seriesBooks(s).size} books") { remember(q); onSeries(s) } }
             }
             if (authorHits.isNotEmpty()) {
                 item { Label("Authors") }
-                items(authorHits) { a -> ResultLine(a, "${books.count { it.author.contains(a) }} books") { onAuthor(a) } }
+                items(authorHits) { a -> ResultLine(a, "${books.count { it.author.contains(a) }} books") { remember(q); onAuthor(a) } }
             }
             if (results.isNotEmpty()) {
                 item { Label("Books") }
-                items(results.distinctBy { it.id }, key = { it.id }) { b -> BookListRow(b, progress[b.id]?.fraction, progress[b.id]?.finished == true) { onOpen(b) } }
+                items(results.distinctBy { it.id }, key = { it.id }) { b -> BookListRow(b, progress[b.id]?.fraction, progress[b.id]?.finished == true) { remember(q); onOpen(b) } }
             }
             if (terms.isNotEmpty() && results.isEmpty() && seriesHits.isEmpty() && authorHits.isEmpty()) item {
                 Text("Nothing matches “${q.trim()}”.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(24.dp))
             }
         }
     }
+}
+
+/** Saves a search to the recent list (newest first, max 8). */
+private fun remember(query: String) {
+    val t = query.trim()
+    if (t.length < 2) return
+    Graph.prefs.updateReader { p -> p.copy(recentSearches = (listOf(t) + p.recentSearches.filter { !it.equals(t, true) }).take(8)) }
 }
 
 @Composable
