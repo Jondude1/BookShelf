@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -85,6 +88,8 @@ import java.util.UUID
 @Serializable
 private data class SelectionJson(val range: String, val text: String)
 
+data class ReturnPoint(val chapter: Int, val inChapter: Double, val label: String)
+
 data class SearchHit(val chapter: Int, val nth: Int, val snippet: String, val chapterTitle: String?)
 
 /** Owns the WebView and everything that happens while reading a reflowable book. */
@@ -108,6 +113,24 @@ class ReflowController(
     var ready by mutableStateOf(false); private set
     var selectedHighlight by mutableStateOf<Highlight?>(null)
     var noteDraft by mutableStateOf<Highlight?>(null)
+    /** Where the reader was before the last jump (contents, link, search, slider…). */
+    var returnPoint by mutableStateOf<ReturnPoint?>(null); private set
+    private var turnsSinceJump = 0
+
+    private fun markJump() {
+        if (!ready) return
+        returnPoint = ReturnPoint(chapter, inChapter, "p. ${page + 1}" + (chapterTitle?.let { " · $it" } ?: ""))
+        turnsSinceJump = 0
+    }
+
+    fun goBack() {
+        val r = returnPoint ?: return
+        returnPoint = null
+        if (r.chapter == chapter && ready) web.evaluateJavascript("BS.goFraction(${r.inChapter})", null)
+        else load(r.chapter, fractionSpec(r.inChapter))
+    }
+
+    fun dismissReturn() { returnPoint = null }
 
     private var startSpec: String = """{"type":"first"}"""
     private var configJson: String = "{}"
@@ -176,6 +199,7 @@ class ReflowController(
 
     override fun onPage(page: Int, count: Int) {
         val turned = page != this.page
+        if (turned && returnPoint != null && ++turnsSinceJump > 6) returnPoint = null
         this.page = page; pageCount = count
         if (ready) saveProgress(turned)
     }
@@ -204,6 +228,7 @@ class ReflowController(
             val frag = uri.fragment
             val idx = book.chapterIndexOf(path)
             if (idx < 0) return
+            markJump()
             if (idx == chapter && frag != null) web.evaluateJavascript("BS.goFragment(${JsonPrimitive(frag)})", null)
             else load(idx, if (frag != null) buildJsonObject { put("type", "fragment"); put("value", frag) }.toString() else """{"type":"first"}""")
         } else if (uri.scheme == "http" || uri.scheme == "https" || uri.scheme == "mailto") {
@@ -247,6 +272,7 @@ class ReflowController(
     private fun refreshHighlights() = web.evaluateJavascript("BS.setHighlights(${highlightsJson()})", null)
 
     fun goToHighlight(h: Highlight) {
+        markJump()
         val start = runCatching { Regex(""""s"\s*:\s*(\d+)""").find(h.range)?.groupValues?.get(1)?.toInt() }.getOrNull() ?: 0
         if (h.chapter == chapter && ready) web.evaluateJavascript("BS.goOffset($start)", null)
         else load(h.chapter, buildJsonObject { put("type", "offset"); put("value", start) }.toString())
@@ -270,6 +296,7 @@ class ReflowController(
     }
 
     fun goToBookmark(b: Bookmark) {
+        markJump()
         val p = b.location.split(':')
         val c = p.getOrNull(2)?.toIntOrNull() ?: return
         val f = p.getOrNull(3)?.toDoubleOrNull() ?: 0.0
@@ -277,11 +304,13 @@ class ReflowController(
     }
 
     fun seek(f: Double) {
+        markJump()
         val (c, inC) = book.positionFor(f)
         if (c == chapter && ready) web.evaluateJavascript("BS.goFraction($inC)", null) else load(c, fractionSpec(inC))
     }
 
     fun goToToc(e: TocEntry) {
+        markJump()
         if (e.fragment != null) load(e.chapterIndex, buildJsonObject { put("type", "fragment"); put("value", e.fragment) }.toString())
         else load(e.chapterIndex, """{"type":"first"}""")
     }
@@ -309,6 +338,7 @@ class ReflowController(
     }
 
     fun goToHit(q: String, hit: SearchHit) {
+        markJump()
         load(hit.chapter, buildJsonObject { put("type", "first"); put("search", q); put("nth", hit.nth) }.toString())
     }
 
@@ -398,6 +428,28 @@ fun ReflowReader(book: ReflowBook, meta: Book, initial: ReadingProgress?, sessio
             showClock = prefs.showClock,
             topInset = topDp,
         )
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = controller.returnPoint != null,
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = if (session.chromeVisible) 190.dp else 40.dp),
+        ) {
+            val rp = controller.returnPoint
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).background(colors.panel).clickable { controller.goBack() }
+                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Undo, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text("Back to ${rp?.label ?: ""}", color = colors.fg, style = MaterialTheme.typography.labelLarge, maxLines = 1,
+                    modifier = Modifier.widthIn(max = 240.dp), overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                IconButton(onClick = { controller.dismissReturn() }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Close, "Dismiss", tint = colors.muted, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
 
         ReaderChrome(
             visible = session.chromeVisible,
