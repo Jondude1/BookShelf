@@ -84,6 +84,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Set by the open reader; returns true if it used the key. */
         var volumeHandler: ((forward: Boolean) -> Boolean)? = null
+        /** Book to open straight away, from the launcher shortcut. */
+        val pendingRead = androidx.compose.runtime.mutableStateOf<String?>(null)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,7 +98,13 @@ class MainActivity : ComponentActivity() {
             }
             if (e == Lifecycle.Event.ON_STOP) Graph.progress.flush()
         })
+        pendingRead.value = intent?.getStringExtra(Shortcuts.EXTRA_READ)
         setContent { BookShelfTheme { App() } }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(Shortcuts.EXTRA_READ)?.let { pendingRead.value = it }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -161,6 +169,10 @@ private fun App() {
     val start = if (server.isLoggedIn) "home" else "login"
 
     fun openBook(id: String) = nav.navigate("book/$id")
+    val pending = MainActivity.pendingRead.value
+    androidx.compose.runtime.LaunchedEffect(pending, server.isLoggedIn) {
+        if (pending != null && server.isLoggedIn) { MainActivity.pendingRead.value = null; nav.navigate("read/$pending") }
+    }
     fun read(id: String) = nav.navigate("read/$id")
     fun series(name: String) = nav.navigate("series/${enc(name)}")
     fun author(name: String) = nav.navigate("author/${enc(name)}")

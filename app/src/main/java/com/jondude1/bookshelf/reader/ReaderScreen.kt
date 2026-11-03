@@ -57,6 +57,7 @@ import com.jondude1.bookshelf.ui.BookCover
 import com.jondude1.bookshelf.ui.Literata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalTime
 
@@ -133,6 +134,7 @@ fun ReaderScreen(bookId: String, onBack: () -> Unit, onOpenBook: (String) -> Uni
     val session = remember(bookId) { ReadingSession(meta, onBack) }
     var opened by remember(bookId) { mutableStateOf<Opened>(Opened.Loading(0f)) }
 
+    LaunchedEffect(bookId) { Graph.scope.launch { com.jondude1.bookshelf.Shortcuts.publishContinue(context.applicationContext, meta) } }
     LaunchedEffect(bookId) {
         opened = runCatching {
             val progress = Graph.progress.resolveForOpen(bookId)
