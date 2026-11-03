@@ -91,6 +91,8 @@ data class ReaderPrefs(
     val edgeBrightness: Boolean = true,
     /** Trim white margins from PDF pages */
     val pdfCropMargins: Boolean = false,
+    /** Books to finish this year */
+    val yearlyGoal: Int = 24,
     // Library view, remembered between launches
     val librarySort: String = "TITLE",
     val libraryShelf: String = "ALL",

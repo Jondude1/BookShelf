@@ -66,6 +66,38 @@ fun StatsScreen() {
             StatTile("Pace", "${(60 / data.secondsPerPage.coerceAtLeast(1.0)).let { "%.1f".format(it) }} pg/min", Modifier.weight(1f))
         }
 
+        // ---- Yearly goal ----
+        val progressAll by Graph.progress.all.collectAsState()
+        val yearStart = java.time.LocalDate.of(today.year, 1, 1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val finishedThisYear = remember(data.finished, progressAll) {
+            (data.finished.filterValues { it.startsWith(today.year.toString()) }.keys +
+                progressAll.values.filter { it.finished && it.updatedAt >= yearStart }.map { it.itemId }).toSet().size
+        }
+        val goal = prefs.yearlyGoal.coerceAtLeast(1)
+        val expected = goal * today.dayOfYear / today.lengthOfYear().toFloat()
+        val diff = finishedThisYear - expected
+        Text("${today.year} goal", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 28.dp, bottom = 12.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp)) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
+                Text("$finishedThisYear", style = MaterialTheme.typography.displaySmall)
+                Text(" of $goal books", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp))
+            }
+            androidx.compose.material3.LinearProgressIndicator(
+                progress = { (finishedThisYear / goal.toFloat()).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp).height(8.dp).clip(RoundedCornerShape(4.dp)),
+                trackColor = muted,
+            )
+            Text(when {
+                finishedThisYear >= goal -> "Goal reached — nicely done"
+                diff >= 0.5f -> "${"%.0f".format(diff)} ahead of schedule"
+                diff <= -0.5f -> "${"%.0f".format(-diff)} behind schedule · ${goal - finishedThisYear} to go"
+                else -> "Right on track · ${goal - finishedThisYear} to go"
+            }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Slider(goal.toFloat(), { v -> Graph.prefs.updateReader { it.copy(yearlyGoal = v.toInt().coerceAtLeast(1)) } }, valueRange = 1f..100f,
+                modifier = Modifier.padding(top = 4.dp))
+        }
+
         Text("Last two weeks", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 28.dp, bottom = 12.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp)) {
             val max = (minutes.maxOrNull() ?: 0).coerceAtLeast(prefs.dailyGoalMinutes).coerceAtLeast(1)
