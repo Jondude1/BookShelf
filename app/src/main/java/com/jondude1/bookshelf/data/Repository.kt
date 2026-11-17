@@ -20,12 +20,23 @@ import kotlinx.serialization.builtins.serializer
 import java.io.File
 import java.time.LocalDate
 
-/** Small atomic JSON file. */
+/**
+ * Small atomic JSON file. Writes are serialized per file (page turns persist progress from
+ * several coroutines at once), and a file that fails to parse is set aside as `.corrupt`
+ * instead of being silently overwritten by defaults, so notes/progress are never wiped.
+ */
 class JsonFile<T>(private val file: File, private val ser: KSerializer<T>, private val default: () -> T) {
-    fun load(): T = runCatching { if (file.exists()) JsonFmt.decodeFromString(ser, file.readText()) else default() }
-        .getOrElse { default() }
+    private val lock = Any()
 
-    fun save(v: T) {
+    fun load(): T = synchronized(lock) {
+        if (!file.exists()) return default()
+        runCatching { JsonFmt.decodeFromString(ser, file.readText()) }.getOrElse {
+            runCatching { file.renameTo(File(file.parentFile, file.name + ".corrupt")) }
+            default()
+        }
+    }
+
+    fun save(v: T): Unit = synchronized(lock) {
         file.parentFile?.mkdirs()
         val tmp = File(file.parentFile, file.name + ".tmp")
         tmp.writeText(JsonFmt.encodeToString(ser, v))
@@ -154,9 +165,11 @@ class ProgressRepository(context: Context, private val client: AbsClient, privat
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing
 
-    suspend fun pushDirty() {
+    private val pushLock = Mutex()
+
+    suspend fun pushDirty(): Unit = pushLock.withLock {
         val dirty = _all.value.values.filter { it.dirty }
-        if (dirty.isEmpty()) return
+        if (dirty.isEmpty()) return@withLock
         _syncing.value = true
         var allOk = true
         for (p in dirty) {
@@ -167,6 +180,7 @@ class ProgressRepository(context: Context, private val client: AbsClient, privat
         if (allOk) _lastSync.value = System.currentTimeMillis()
         _syncing.value = false
         persist()
+        Unit
     }
 
     /** Merges server progress for all books; newer side wins. */
@@ -318,7 +332,7 @@ class AnnotationRepository(context: Context) {
     private fun file(id: String) = JsonFile(File(dir, "$id.json"), Annotations.serializer()) { Annotations() }
     private val cache = mutableMapOf<String, MutableStateFlow<Annotations>>()
 
-    fun flow(id: String): StateFlow<Annotations> = cache.getOrPut(id) { MutableStateFlow(file(id).load()) }
+    fun flow(id: String): StateFlow<Annotations> = synchronized(cache) { cache.getOrPut(id) { MutableStateFlow(file(id).load()) } }
 
     fun edit(id: String, f: (Annotations) -> Annotations) {
         val s = flow(id) as MutableStateFlow
@@ -326,7 +340,7 @@ class AnnotationRepository(context: Context) {
         file(id).save(s.value)
     }
 
-    fun allBooksWithNotes(): List<String> = dir.listFiles().orEmpty().map { it.nameWithoutExtension }
+    fun allBooksWithNotes(): List<String> = dir.listFiles().orEmpty().filter { it.extension == "json" }.map { it.nameWithoutExtension }
 
     fun all(): Map<String, Annotations> = allBooksWithNotes().associateWith { flow(it).value }
 

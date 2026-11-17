@@ -242,7 +242,8 @@ class AbsClient(private val prefs: Prefs) {
             val total = body.contentLength()
             val tmp = File(dest.parentFile, dest.name + ".part")
             dest.parentFile?.mkdirs()
-            body.byteStream().use { input ->
+            try {
+              body.byteStream().use { input ->
                 tmp.outputStream().use { out ->
                     val buf = ByteArray(64 * 1024)
                     var read = 0L
@@ -257,8 +258,10 @@ class AbsClient(private val prefs: Prefs) {
                             onProgress(if (total > 0) read.toFloat() / total else -1f)
                         }
                     }
+                    if (total > 0 && read != total) throw AbsException("Download was cut short — try again")
                 }
-            }
+              }
+            } catch (e: Throwable) { tmp.delete(); throw e }
             if (!tmp.renameTo(dest)) { tmp.copyTo(dest, overwrite = true); tmp.delete() }
             onProgress(1f)
         }
